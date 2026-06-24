@@ -28,6 +28,13 @@
   --toolbar-bg: rgba(255, 255, 255, 0.04);
   --font-main: 'Roboto', sans-serif;
   --font-mono: 'Roboto Mono', monospace;
+  --diagram-body-light: #2a3444;
+  --diagram-body-dark: #1a2332;
+  --diagram-stroke: #388bfd;
+  --diagram-rotor: #3d4f6a;
+  --diagram-shaft: #57606a;
+  --diagram-bearing: #4a5568;
+  --diagram-fan: #2d4a3e;
 }
 
 [data-theme="light"] {
@@ -53,6 +60,13 @@
   --chart-legend: #57606a;
   --btn-outline-color: #57606a;
   --toolbar-bg: #f6f8fa;
+  --diagram-body-light: #e8eef5;
+  --diagram-body-dark: #d0d7de;
+  --diagram-stroke: #0969da;
+  --diagram-rotor: #afb8c1;
+  --diagram-shaft: #8c959f;
+  --diagram-bearing: #d0d7de;
+  --diagram-fan: #aceebb;
 }
 
 /* --- Base --- */
@@ -151,6 +165,11 @@ main {
   background-color: var(--status-alarm);
   box-shadow: 0 0 20px var(--status-alarm-glow);
   animation: blink-alarm 1s infinite;
+}
+
+.status-indicator.warning {
+  background-color: var(--status-warning);
+  box-shadow: 0 0 16px rgba(210, 153, 34, 0.4);
 }
 
 @keyframes blink-alarm {
@@ -1249,6 +1268,385 @@ main {
     background: #fff !important;
     color: #000 !important;
   }
+}
+
+/* --- Santé & composants moteur --- */
+.health-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+}
+
+.global-kpi-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.global-kpi {
+  display: grid;
+  grid-template-columns: 120px 1fr 50px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.global-kpi-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.global-kpi-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.health-bar-wrap {
+  height: 10px;
+  background: var(--bg-secondary);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.health-bar-wrap.sm {
+  height: 8px;
+}
+
+.health-bar {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--status-ok);
+  transition: width 0.4s ease, background-color 0.3s ease;
+}
+
+.health-bar.health-normal { background: var(--status-ok); }
+.health-bar.health-warning { background: var(--status-warning); }
+.health-bar.health-critical { background: var(--status-alarm); }
+
+.operation-bar {
+  background: var(--accent-blue);
+}
+
+.status-value.warning {
+  color: var(--status-warning);
+}
+
+/* --- KPI cards --- */
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+
+.kpi-icon {
+  font-size: 1.5rem;
+  color: var(--accent-blue);
+  margin-bottom: 0.35rem;
+}
+
+.kpi-value {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+/* --- Schéma moteur --- */
+.motor-diagram-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+
+.motor-svg {
+  width: 100%;
+  max-height: 260px;
+}
+
+.diagram-part {
+  cursor: pointer;
+  transition: fill 0.3s ease, stroke 0.3s ease, filter 0.3s ease;
+}
+
+.diagram-part:hover {
+  filter: brightness(1.15);
+}
+
+.diagram-part.diagram-normal { stroke: var(--status-ok); }
+.diagram-part.diagram-warning { stroke: var(--status-warning); filter: drop-shadow(0 0 4px rgba(210,153,34,0.5)); }
+.diagram-part.diagram-critical { stroke: var(--status-alarm); filter: drop-shadow(0 0 6px rgba(218,54,51,0.6)); animation: blink-alarm 1.5s infinite; }
+
+.diagram-label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-main);
+  font-weight: 600;
+}
+
+.diagram-label-sm {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+.fan-blades.spinning {
+  animation: spin-fan linear infinite;
+  transform-origin: 78px 140px;
+}
+
+@keyframes spin-fan {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --- Cartes composants --- */
+.component-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.component-card.status-normal { border-left: 4px solid var(--status-ok); }
+.component-card.status-warning { border-left: 4px solid var(--status-warning); box-shadow: 0 0 10px rgba(210,153,34,0.2); }
+.component-card.status-critical { border-left: 4px solid var(--status-alarm); box-shadow: 0 0 14px var(--status-alarm-glow); }
+
+.component-header {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75rem 1rem;
+}
+
+.component-header i {
+  color: var(--accent-blue);
+}
+
+.component-status-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  background: var(--status-ok);
+  color: #fff;
+}
+
+.component-status-badge.status-warning { background: var(--status-warning); color: #1f2328; }
+.component-status-badge.status-critical { background: var(--status-alarm); animation: blink-alarm 1s infinite; }
+
+.component-health-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 45px;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.component-health-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.component-health-value {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.component-operation {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.component-zones {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.component-param-row {
+  display: grid;
+  grid-template-columns: 1fr auto 12px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  font-size: 0.82rem;
+}
+
+.param-label {
+  color: var(--text-secondary);
+}
+
+.param-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.param-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--status-ok);
+}
+
+.param-status-dot.warning { background: var(--status-warning); }
+.param-status-dot.critical { background: var(--status-alarm); animation: blink-alarm 1s infinite; }
+
+.param-unit {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  min-width: 42px;
+  text-align: center;
+}
+
+/* --- Alarmes actives --- */
+.alarm-panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+
+.alarm-panel-card.has-alarms {
+  border-color: var(--status-alarm);
+  box-shadow: 0 0 16px var(--status-alarm-glow);
+}
+
+.active-alarms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.active-alarm-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.active-alarm-item.status-warning {
+  border-left: 3px solid var(--status-warning);
+}
+
+.active-alarm-item.status-critical {
+  border-left: 3px solid var(--status-alarm);
+  background: rgba(218, 54, 51, 0.08);
+}
+
+.active-alarm-icon {
+  color: var(--status-alarm);
+  font-size: 1.2rem;
+}
+
+.active-alarm-item.status-warning .active-alarm-icon {
+  color: var(--status-warning);
+}
+
+.active-alarm-body {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.active-alarm-detail {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.alarm-badge-warning { background: var(--status-warning) !important; color: #1f2328 !important; }
+.alarm-badge-critical { background: var(--status-alarm) !important; }
+
+.manual-accordion-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color) !important;
+  margin-bottom: 0.5rem;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.manual-accordion-item .accordion-button {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.manual-accordion-item .accordion-button:not(.collapsed) {
+  background: rgba(56, 139, 253, 0.08);
+  color: var(--accent-blue);
+}
+
+.manual-accordion-item .accordion-body {
+  background: var(--bg-card);
+}
+
+.component-card,
+.motor-diagram-card,
+.kpi-card,
+.alarm-panel-card {
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.component-history {
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.component-history-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.component-chart-wrap {
+  height: 90px;
+  position: relative;
+}
+
+.diagram-part.d-none {
+  display: none;
+}
+
+.alarm-panel-card.has-alarms .card-header {
+  background: rgba(218, 54, 51, 0.12);
+  color: var(--status-alarm);
+}
+
+.alarm-panel-card.has-alarms .card-header i {
+  animation: blink-alarm 1s infinite;
 }
 
 /* --- Responsive --- */

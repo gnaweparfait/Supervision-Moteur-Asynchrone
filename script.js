@@ -167,6 +167,7 @@ function logout() {
   if (typeof state !== 'undefined' && state.isRunning) {
     stopSimulation();
   }
+  stopPersistentAlarm();
   clearSession();
   window.location.replace('login.html');
 }
@@ -232,54 +233,186 @@ function initLoginPage() {
   initThemeToggle();
 }
 
-/* --- Configuration des capteurs --- */
-const SENSORS = {
-  temperature: {
-    label: 'Température',
-    unit: '°C',
-    default: 55.0,
-    min: 20,
-    max: 100,
-    step: 0.1,
-    decimals: 1,
-    threshold: { type: 'max', value: 75 },
-    // Paramètres de simulation : valeur nominale et amplitude du bruit
-    sim: { nominal: 55, noise: 0.8, drift: 0.05 }
+/* --- Configuration des composants moteur --- */
+const COMPONENTS = {
+  stator: {
+    label: 'Stator',
+    icon: 'bi-magnet',
+    weight: 1.2,
+    zones: ['Carcasse du stator', 'Circuit magnétique'],
+    params: {
+      temperature: {
+        label: 'Température stator', unit: '°C', default: 55, min: 20, max: 120, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 70, critical: 85 },
+        sim: { nominal: 55, noise: 0.6, drift: 0.04 },
+        faultWarning: 'Échauffement stator', faultCritical: 'Surchauffe'
+      },
+      vibration: {
+        label: 'Vibrations', unit: 'mm/s', default: 2.1, min: 0, max: 15, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 4.5, critical: 7 },
+        sim: { nominal: 2.1, noise: 0.15, drift: 0.05 },
+        faultWarning: 'Vibrations modérées', faultCritical: 'Vibrations anormales'
+      },
+      current: {
+        label: 'Courant absorbé', unit: 'A', default: 15.5, min: 0, max: 35, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 20, critical: 25 },
+        sim: { nominal: 15.5, noise: 0.4, drift: 0.02 },
+        faultWarning: 'Courant élevé', faultCritical: 'Déséquilibre électrique'
+      },
+      voltage: {
+        label: 'Tension alimentation', unit: 'V', default: 400, min: 300, max: 460, step: 1, decimals: 0,
+        threshold: { type: 'range', warningMin: 370, warningMax: 430, criticalMin: 360, criticalMax: 440 },
+        sim: { nominal: 400, noise: 2, drift: 1 },
+        faultWarning: 'Tension hors plage', faultCritical: 'Déséquilibre électrique'
+      }
+    }
   },
-  pressure: {
-    label: 'Pression',
-    unit: 'bar',
-    default: 3.2,
-    min: 0,
-    max: 6,
-    step: 0.01,
-    decimals: 2,
-    threshold: { type: 'max', value: 4.5 },
-    sim: { nominal: 3.2, noise: 0.04, drift: 0.008 }
+  windings: {
+    label: 'Enroulements',
+    icon: 'bi-lightning-charge',
+    weight: 1.3,
+    zones: ['Bobinages internes'],
+    params: {
+      temperature: {
+        label: 'Température enroulements', unit: '°C', default: 62, min: 20, max: 150, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 85, critical: 110 },
+        sim: { nominal: 62, noise: 0.7, drift: 0.05 },
+        faultWarning: 'Échauffement enroulements', faultCritical: 'Surchauffe des enroulements'
+      },
+      insulation: {
+        label: 'Résistance d\'isolement', unit: 'MΩ', default: 500, min: 0, max: 1000, step: 1, decimals: 0,
+        threshold: { type: 'min', warning: 100, critical: 50 },
+        sim: { nominal: 500, noise: 5, drift: 1 },
+        faultWarning: 'Isolement en baisse', faultCritical: 'Dégradation de l\'isolant'
+      },
+      current: {
+        label: 'Courant électrique', unit: 'A', default: 15.2, min: 0, max: 35, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 20, critical: 28 },
+        sim: { nominal: 15.2, noise: 0.4, drift: 0.02 },
+        faultWarning: 'Courant élevé', faultCritical: 'Court-circuit partiel'
+      }
+    }
   },
-  current: {
-    label: 'Courant',
-    unit: 'A',
-    default: 15.5,
-    min: 0,
-    max: 30,
-    step: 0.1,
-    decimals: 1,
-    threshold: { type: 'max', value: 22 },
-    sim: { nominal: 15.5, noise: 0.5, drift: 0.03 }
+  rotor: {
+    label: 'Rotor',
+    icon: 'bi-arrow-repeat',
+    weight: 1.1,
+    zones: ['Cage rotorique', 'Axe du rotor'],
+    params: {
+      temperature: {
+        label: 'Température rotor', unit: '°C', default: 48, min: 20, max: 110, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 65, critical: 80 },
+        sim: { nominal: 48, noise: 0.5, drift: 0.03 },
+        faultWarning: 'Échauffement rotor', faultCritical: 'Échauffement anormal'
+      },
+      speed: {
+        label: 'Vitesse rotation', unit: 'tr/min', default: 1450, min: 800, max: 1800, step: 1, decimals: 0,
+        threshold: { type: 'range', warningMin: 1320, warningMax: 1560, criticalMin: 1200, criticalMax: 1650 },
+        sim: { nominal: 1450, noise: 8, drift: 2 },
+        faultWarning: 'Vitesse hors plage', faultCritical: 'Défaut de rotation'
+      },
+      vibration: {
+        label: 'Vibrations', unit: 'mm/s', default: 1.8, min: 0, max: 15, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 4, critical: 6.5 },
+        sim: { nominal: 1.8, noise: 0.12, drift: 0.04 },
+        faultWarning: 'Vibrations modérées', faultCritical: 'Déséquilibre mécanique'
+      }
+    }
   },
-  speed: {
-    label: 'Vitesse asynchrone',
-    unit: 'tr/min',
-    default: 1450,
-    min: 1000,
-    max: 1800,
-    step: 1,
-    decimals: 0,
-    threshold: { type: 'range', min: 1300, max: 1550 },
-    sim: { nominal: 1450, noise: 8, drift: 2 }
+  shaft: {
+    label: 'Arbre de transmission',
+    icon: 'bi-arrows-collapse',
+    weight: 1.0,
+    zones: ['Axe de transmission'],
+    params: {
+      vibration: {
+        label: 'Vibration arbre', unit: 'mm/s', default: 1.5, min: 0, max: 12, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 3.5, critical: 5.5 },
+        sim: { nominal: 1.5, noise: 0.1, drift: 0.03 },
+        faultWarning: 'Vibrations arbre', faultCritical: 'Déséquilibre / Fatigue mécanique'
+      },
+      speed: {
+        label: 'Vitesse rotation', unit: 'tr/min', default: 1450, min: 800, max: 1800, step: 1, decimals: 0,
+        threshold: { type: 'range', warningMin: 1320, warningMax: 1560, criticalMin: 1200, criticalMax: 1650 },
+        sim: { nominal: 1450, noise: 6, drift: 1.5 },
+        faultWarning: 'Vitesse anormale', faultCritical: 'Défaut transmission'
+      },
+      alignment: {
+        label: 'Alignement', unit: 'mm', default: 0.05, min: 0, max: 2, step: 0.01, decimals: 2,
+        threshold: { type: 'max', warning: 0.3, critical: 0.6 },
+        sim: { nominal: 0.05, noise: 0.01, drift: 0.005 },
+        faultWarning: 'Alignement dégradé', faultCritical: 'Désalignement'
+      }
+    }
+  },
+  bearings: {
+    label: 'Paliers / Roulements',
+    icon: 'bi-circle',
+    weight: 1.15,
+    zones: ['Roulements avant et arrière'],
+    params: {
+      temperature: {
+        label: 'Température paliers', unit: '°C', default: 42, min: 15, max: 100, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 60, critical: 75 },
+        sim: { nominal: 42, noise: 0.4, drift: 0.03 },
+        faultWarning: 'Échauffement paliers', faultCritical: 'Mauvaise lubrification'
+      },
+      vibration: {
+        label: 'Vibrations', unit: 'mm/s', default: 1.2, min: 0, max: 12, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 3, critical: 5 },
+        sim: { nominal: 1.2, noise: 0.08, drift: 0.03 },
+        faultWarning: 'Vibrations paliers', faultCritical: 'Usure excessive'
+      },
+      wear: {
+        label: 'Niveau d\'usure', unit: '%', default: 12, min: 0, max: 100, step: 1, decimals: 0,
+        threshold: { type: 'max', warning: 60, critical: 80 },
+        sim: { nominal: 12, noise: 0.5, drift: 0.1 },
+        faultWarning: 'Usure modérée', faultCritical: 'Blocage partiel'
+      },
+      pressure: {
+        label: 'Pression lubrification', unit: 'bar', default: 3.2, min: 0, max: 6, step: 0.01, decimals: 2,
+        threshold: { type: 'min', warning: 2.5, critical: 1.5 },
+        sim: { nominal: 3.2, noise: 0.04, drift: 0.008 },
+        faultWarning: 'Pression basse', faultCritical: 'Mauvaise lubrification'
+      }
+    }
+  },
+  ventilation: {
+    label: 'Ventilation',
+    icon: 'bi-fan',
+    weight: 0.9,
+    optional: true,
+    zones: ['Système de refroidissement'],
+    params: {
+      coolingTemp: {
+        label: 'Temp. refroidissement', unit: '°C', default: 35, min: 15, max: 80, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 50, critical: 65 },
+        sim: { nominal: 35, noise: 0.5, drift: 0.04 },
+        faultWarning: 'Refroidissement insuffisant', faultCritical: 'Échauffement général'
+      },
+      fanSpeed: {
+        label: 'Vitesse ventilateur', unit: 'tr/min', default: 2800, min: 500, max: 3500, step: 10, decimals: 0,
+        threshold: { type: 'range', warningMin: 2200, warningMax: 3200, criticalMin: 1800, criticalMax: 3400 },
+        sim: { nominal: 2800, noise: 30, drift: 10 },
+        faultWarning: 'Ventilateur hors plage', faultCritical: 'Ventilation insuffisante'
+      },
+      airFlow: {
+        label: 'Débit d\'air', unit: 'm³/h', default: 850, min: 0, max: 1500, step: 5, decimals: 0,
+        threshold: { type: 'min', warning: 600, critical: 400 },
+        sim: { nominal: 850, noise: 15, drift: 5 },
+        faultWarning: 'Débit réduit', faultCritical: 'Ventilation insuffisante'
+      }
+    }
   }
 };
+
+const STATUS_LABELS = { normal: 'Normal', warning: 'Alerte', critical: 'Critique' };
+const HEALTH_LABELS = [
+  { min: 90, label: 'Excellent' },
+  { min: 70, label: 'Bon' },
+  { min: 50, label: 'Moyen' },
+  { min: 0, label: 'Critique' }
+];
 
 /* --- Constantes globales --- */
 const SIMULATION_INTERVAL = 800;
@@ -290,20 +423,35 @@ const THEME_STORAGE_KEY = 'motorSupervisionTheme';
 /* --- État de l'application --- */
 const state = {
   values: {},
+  componentHealth: {},
+  globalHealth: 100,
+  operationLevel: 100,
   isRunning: false,
-  manualMode: false,   // true = l'utilisateur contrôle les valeurs manuellement
+  manualMode: false,
+  ventilationPresent: true,
   intervalId: null,
   previousAlarms: {},
   chartLabels: [],
-  simPhase: 0
+  simPhase: 0,
+  alarmSoundActive: false
 };
 
 /* --- Références DOM --- */
 const dom = {};
 
 /* --- Graphiques Chart.js --- */
-let chartTempPressure = null;
-let chartCurrentSpeed = null;
+let chartTemperatures = null;
+let chartVibrations = null;
+let chartHealth = null;
+let componentCharts = {};
+let alarmAudioContext = null;
+let alarmSoundInterval = null;
+
+const OPERATION_REDUCTION_CRITICAL = 30;
+const OPERATION_REDUCTION_WARNING = 8;
+const GLOBAL_OPERATION_REDUCTION_CRITICAL = 30;
+const GLOBAL_OPERATION_REDUCTION_WARNING = 5;
+const COMPONENT_CHART_COLORS = ['#f85149', '#388bfd', '#39d353', '#d29922', '#a371f7'];
 
 /**
  * Point d'entrée : route vers login ou dashboard selon data-page
@@ -338,9 +486,13 @@ function initDashboard() {
   if (!requireAuth()) return;
 
   cacheDOMElements();
-  initSensorValues();
+  initComponentValues();
+  renderComponentCards();
+  renderManualControls();
+  initComponentCharts();
   initCharts();
   bindEvents();
+  updateVentilationVisibility();
   updateDateTime();
   setInterval(updateDateTime, 1000);
   loadFromLocalStorage();
@@ -350,7 +502,7 @@ function initDashboard() {
   updateDateTimeHeader();
 
   addLog(`Connexion réussie — Bienvenue, ${getLoggedInUser() || AUTH_CONFIG.username}.`, 'ok');
-  addLog('Système initialisé. En attente de démarrage de la simulation.', 'info');
+  addLog('Système de supervision initialisé. Démarrez la simulation (mode auto) ou activez le mode manuel.', 'info');
 }
 
 /**
@@ -437,6 +589,11 @@ function updateDateTimeHeader() {
 function cacheDOMElements() {
   dom.motorStatusIndicator = document.getElementById('motorStatusIndicator');
   dom.motorStatusText = document.getElementById('motorStatusText');
+  dom.healthStateLabel = document.getElementById('healthStateLabel');
+  dom.globalHealthBar = document.getElementById('globalHealthBar');
+  dom.globalHealthValue = document.getElementById('globalHealthValue');
+  dom.operationLevelBar = document.getElementById('operationLevelBar');
+  dom.operationLevelValue = document.getElementById('operationLevelValue');
   dom.simulationBadge = document.getElementById('simulationBadge');
   dom.btnStart = document.getElementById('btnStart');
   dom.btnStop = document.getElementById('btnStop');
@@ -445,35 +602,162 @@ function cacheDOMElements() {
   dom.eventLog = document.getElementById('eventLog');
   dom.currentDateTime = document.getElementById('currentDateTime');
   dom.manualModeToggle = document.getElementById('manualModeToggle');
+  dom.modeLabel = document.getElementById('modeLabel');
+  dom.activeAlarmsList = document.getElementById('activeAlarmsList');
+  dom.alarmCountBadge = document.getElementById('alarmCountBadge');
+  dom.alarmPanel = document.getElementById('alarmPanel');
+  dom.componentCards = document.getElementById('componentCards');
+  dom.kpiAvgTemp = document.getElementById('kpiAvgTemp');
+  dom.kpiAvgVibration = document.getElementById('kpiAvgVibration');
+  dom.kpiEfficiency = document.getElementById('kpiEfficiency');
+  dom.kpiCurrent = document.getElementById('kpiCurrent');
+  dom.kpiVoltage = document.getElementById('kpiVoltage');
+  dom.kpiSpeed = document.getElementById('kpiSpeed');
+  dom.kpiPressure = document.getElementById('kpiPressure');
+  dom.ventilationToggle = document.getElementById('ventilationToggle');
+  dom.ventilationCardWrap = document.getElementById('ventilationCardWrap');
+  dom.ventilationDiagramParts = document.querySelectorAll('[data-component="ventilation"]');
+  dom.fanBlades = document.getElementById('fanBlades');
+}
 
-  dom.sensors = {};
-  Object.keys(SENSORS).forEach(key => {
-    dom.sensors[key] = {
-      card: document.getElementById(`card-${key}`),
-      value: document.getElementById(`value-${key}`),
-      status: document.getElementById(`status-${key}`),
-      slider: document.getElementById(`slider-${key}`),
-      input: document.getElementById(`input-${key}`),
-      panelSlider: document.getElementById(`panel-slider-${key}`),
-      panelInput: document.getElementById(`panel-input-${key}`),
-      controlValue: document.getElementById(`control-value-${key}`)
-    };
+function initComponentValues() {
+  Object.keys(COMPONENTS).forEach(compId => {
+    state.values[compId] = {};
+    state.componentHealth[compId] = 100;
+    state.previousAlarms[compId] = {};
+    Object.keys(COMPONENTS[compId].params).forEach(paramId => {
+      state.values[compId][paramId] = COMPONENTS[compId].params[paramId].default;
+      state.previousAlarms[compId][paramId] = false;
+    });
   });
 }
 
-/**
- * Initialise les valeurs par défaut des capteurs
- */
-function initSensorValues() {
-  Object.keys(SENSORS).forEach(key => {
-    state.values[key] = SENSORS[key].default;
-    state.previousAlarms[key] = false;
+function getActiveComponentIds() {
+  return Object.keys(COMPONENTS).filter(compId => {
+    if (COMPONENTS[compId].optional && !state.ventilationPresent) return false;
+    return true;
   });
 }
 
-/**
- * Lie tous les événements utilisateur
- */
+function renderComponentCards() {
+  if (!dom.componentCards) return;
+  dom.componentCards.innerHTML = '';
+
+  Object.entries(COMPONENTS).forEach(([compId, comp]) => {
+    const col = document.createElement('div');
+    col.className = 'col-xl-4 col-lg-6';
+    col.id = comp.optional ? 'ventilationCardWrap' : '';
+    col.dataset.componentWrap = compId;
+    col.innerHTML = `
+      <div class="card component-card status-normal" id="card-${compId}" data-component="${compId}">
+        <div class="card-header component-header">
+          <i class="bi ${comp.icon}"></i>
+          <span>${comp.label}</span>
+          <span class="component-status-badge" id="status-badge-${compId}">Normal</span>
+        </div>
+        <div class="card-body">
+          <div class="component-health-row">
+            <span class="component-health-label">Bon état</span>
+            <div class="health-bar-wrap sm">
+              <div class="health-bar" id="health-bar-${compId}" style="width:100%"></div>
+            </div>
+            <span class="component-health-value" id="health-value-${compId}">100 %</span>
+          </div>
+          <div class="component-operation">
+            <span>Fonctionnement : <strong id="operation-${compId}">100 %</strong></span>
+          </div>
+          <div class="component-zones"><small>${comp.zones.join(' · ')}</small></div>
+          <div class="component-params" id="params-${compId}"></div>
+          <div class="component-history">
+            <small class="component-history-label"><i class="bi bi-graph-up"></i> Évolution des mesures</small>
+            <div class="component-chart-wrap">
+              <canvas id="comp-chart-${compId}"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    dom.componentCards.appendChild(col);
+
+    const paramsEl = col.querySelector(`#params-${compId}`);
+    Object.entries(comp.params).forEach(([paramId, param]) => {
+      const row = document.createElement('div');
+      row.className = 'component-param-row';
+      row.innerHTML = `
+        <span class="param-label">${param.label}</span>
+        <span class="param-value" id="val-${compId}-${paramId}">—</span>
+        <span class="param-status-dot normal" id="dot-${compId}-${paramId}"></span>`;
+      paramsEl.appendChild(row);
+    });
+  });
+
+  dom.diagramParts = document.querySelectorAll('.diagram-part');
+  dom.ventilationCardWrap = document.getElementById('ventilationCardWrap');
+  dom.ventilationDiagramParts = document.querySelectorAll('[data-component="ventilation"]');
+}
+
+function updateVentilationVisibility() {
+  const show = state.ventilationPresent;
+  if (dom.ventilationCardWrap) {
+    dom.ventilationCardWrap.classList.toggle('d-none', !show);
+  }
+  dom.ventilationDiagramParts?.forEach(el => el.classList.toggle('d-none', !show));
+}
+
+function renderManualControls() {
+  const accordion = document.getElementById('manualControlsAccordion');
+  if (!accordion) return;
+  accordion.innerHTML = '';
+
+  Object.entries(COMPONENTS).forEach(([compId, comp], idx) => {
+    const item = document.createElement('div');
+    item.className = 'accordion-item manual-accordion-item';
+    item.dataset.componentManual = compId;
+    item.innerHTML = `
+      <h2 class="accordion-header">
+        <button class="accordion-button ${idx > 0 ? 'collapsed' : ''}" type="button"
+          data-bs-toggle="collapse" data-bs-target="#manual-${compId}">
+          <i class="bi ${comp.icon} me-2"></i> ${comp.label}
+        </button>
+      </h2>
+      <div id="manual-${compId}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}"
+        data-bs-parent="#manualControlsAccordion">
+        <div class="accordion-body">
+          <div class="row g-3" id="controls-${compId}"></div>
+        </div>
+      </div>`;
+    accordion.appendChild(item);
+
+    const controlsEl = item.querySelector(`#controls-${compId}`);
+    Object.entries(comp.params).forEach(([paramId, param]) => {
+      const col = document.createElement('div');
+      col.className = 'col-md-6';
+      col.innerHTML = `
+        <div class="control-item">
+          <div class="control-item-header">
+            <span>${param.label}</span>
+            <span class="control-live-value" id="ctrl-val-${compId}-${paramId}">—</span>
+          </div>
+          <input type="range" class="form-range manual-slider"
+            id="slider-${compId}-${paramId}"
+            data-comp="${compId}" data-param="${paramId}"
+            min="${param.min}" max="${param.max}" step="${param.step}" value="${param.default}">
+          <div class="d-flex align-items-center gap-2 mt-1">
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-step-manual"
+              data-comp="${compId}" data-param="${paramId}" data-dir="-1">−</button>
+            <input type="number" class="form-control form-control-sm sensor-input manual-input"
+              id="input-${compId}-${paramId}"
+              data-comp="${compId}" data-param="${paramId}"
+              min="${param.min}" max="${param.max}" step="${param.step}" value="${param.default}">
+            <span class="input-group-text param-unit">${param.unit}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-step-manual"
+              data-comp="${compId}" data-param="${paramId}" data-dir="1">+</button>
+          </div>
+        </div>`;
+      controlsEl.appendChild(col);
+    });
+  });
+}
+
 function bindEvents() {
   dom.btnStart.addEventListener('click', startSimulation);
   dom.btnStop.addEventListener('click', stopSimulation);
@@ -489,67 +773,66 @@ function bindEvents() {
     });
   }
 
-  // Mode manuel
   if (dom.manualModeToggle) {
     dom.manualModeToggle.addEventListener('change', () => {
       state.manualMode = dom.manualModeToggle.checked;
-      const msg = state.manualMode
-        ? 'Mode manuel activé — réglage température, pression, courant et vitesse asynchrone.'
-        : 'Mode automatique — la simulation met à jour les paramètres moteur.';
-      addLog(msg, state.manualMode ? 'warning' : 'info');
+      if (dom.modeLabel) {
+        dom.modeLabel.textContent = state.manualMode ? 'Mode Manuel' : 'Mode Auto';
+      }
+      addLog(
+        state.manualMode
+          ? 'Mode manuel activé — température, vibration, pression, courant, tension, vitesse modifiables.'
+          : 'Mode automatique — données capteurs simulées en temps réel.',
+        state.manualMode ? 'warning' : 'info'
+      );
     });
   }
 
-  // Boutons ± du panneau de réglage
-  document.querySelectorAll('.btn-step').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.sensor;
-      const direction = parseInt(btn.dataset.step, 10);
-      const config = SENSORS[key];
-      const step = config.step * (direction > 0 ? 1 : -1) * (key === 'speed' ? 10 : (key === 'pressure' ? 5 : 1));
-      setSensorValue(key, state.values[key] + step, true);
+  if (dom.ventilationToggle) {
+    dom.ventilationToggle.checked = state.ventilationPresent;
+    dom.ventilationToggle.addEventListener('change', () => {
+      state.ventilationPresent = dom.ventilationToggle.checked;
+      updateVentilationVisibility();
+      updateUI();
+      addLog(
+        state.ventilationPresent
+          ? 'Système de ventilation activé sur ce moteur.'
+          : 'Ventilation désactivée — composant exclu de la supervision.',
+        'info'
+      );
+      saveToLocalStorage();
     });
+  }
+
+  document.addEventListener('input', (e) => {
+    if (e.target.classList.contains('manual-slider')) {
+      const compId = e.target.dataset.comp;
+      const paramId = e.target.dataset.param;
+      if (compId && paramId) setParamValue(compId, paramId, parseFloat(e.target.value), true);
+    }
+    if (e.target.classList.contains('manual-input')) {
+      const compId = e.target.dataset.comp;
+      const paramId = e.target.dataset.param;
+      const val = parseFloat(e.target.value);
+      if (compId && paramId && !isNaN(val)) setParamValue(compId, paramId, val, true);
+    }
   });
 
-  Object.keys(SENSORS).forEach(key => {
-    const { slider, input, panelSlider, panelInput } = dom.sensors[key];
-    const config = SENSORS[key];
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-step-manual');
+    if (!btn) return;
+    const { comp, param, dir } = btn.dataset;
+    const config = COMPONENTS[comp].params[param];
+    const mult = parseInt(dir, 10) > 0 ? 1 : -1;
+    const step = config.step * mult * (param === 'speed' || param === 'fanSpeed' ? 10 : 1);
+    setParamValue(comp, param, state.values[comp][param] + step, true);
+  });
 
-    // Curseurs des cartes capteurs
-    slider.addEventListener('input', () => {
-      setSensorValue(key, parseFloat(slider.value), true);
+  dom.diagramParts?.forEach(part => {
+    part.addEventListener('click', () => {
+      const compId = part.dataset.component;
+      document.getElementById(`card-${compId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-
-    input.addEventListener('input', () => {
-      let val = parseFloat(input.value);
-      if (!isNaN(val)) setSensorValue(key, val, true);
-    });
-
-    input.addEventListener('change', () => {
-      let val = parseFloat(input.value);
-      if (isNaN(val)) val = config.default;
-      setSensorValue(key, val, true);
-    });
-
-    // Curseurs et inputs du panneau de réglage
-    if (panelSlider) {
-      panelSlider.addEventListener('input', () => {
-        setSensorValue(key, parseFloat(panelSlider.value), true);
-      });
-    }
-
-    if (panelInput) {
-      panelInput.addEventListener('input', () => {
-        let val = parseFloat(panelInput.value);
-        if (!isNaN(val)) setSensorValue(key, val, true);
-      });
-
-      panelInput.addEventListener('change', () => {
-        let val = parseFloat(panelInput.value);
-        if (isNaN(val)) val = config.default;
-        setSensorValue(key, val, true);
-      });
-    }
   });
 }
 
@@ -614,55 +897,47 @@ function stopSimulation() {
  */
 function resetValues() {
   stopSimulation();
-
   state.manualMode = false;
   if (dom.manualModeToggle) dom.manualModeToggle.checked = false;
+  if (dom.modeLabel) dom.modeLabel.textContent = 'Mode Auto';
 
-  Object.keys(SENSORS).forEach(key => {
-    state.values[key] = SENSORS[key].default;
-    state.previousAlarms[key] = false;
+  initComponentValues();
+  state.chartLabels = [];
+  stopPersistentAlarm();
+
+  [chartTemperatures, chartVibrations, chartHealth].forEach(chart => {
+    if (!chart) return;
+    chart.data.labels = [];
+    chart.data.datasets.forEach(ds => { ds.data = []; });
+    chart.update('none');
   });
 
-  // Réinitialiser les graphiques
-  state.chartLabels = [];
-  if (chartTempPressure) {
-    chartTempPressure.data.labels = [];
-    chartTempPressure.data.datasets.forEach(ds => ds.data = []);
-    chartTempPressure.update('none');
-  }
-  if (chartCurrentSpeed) {
-    chartCurrentSpeed.data.labels = [];
-    chartCurrentSpeed.data.datasets.forEach(ds => ds.data = []);
-    chartCurrentSpeed.update('none');
-  }
+  Object.values(componentCharts).forEach(chart => {
+    chart.data.labels = [];
+    chart.data.datasets.forEach(ds => { ds.data = []; });
+    chart.update('none');
+  });
 
   updateUI();
-  addLog('Valeurs réinitialisées aux paramètres nominaux.', 'info');
+  addLog('Valeurs réinitialisées — tous les composants à 100 %.', 'info');
   saveToLocalStorage();
 }
 
-/**
- * Tick de simulation : génère des variations réalistes
- */
 function simulationTick() {
   state.simPhase += 0.15;
 
-  // En mode manuel, seuls les graphiques et alarmes sont mis à jour
   if (!state.manualMode) {
-    Object.keys(SENSORS).forEach((key, index) => {
-      const config = SENSORS[key];
-      const sim = config.sim;
-      const current = state.values[key];
-
-      const noise = (Math.random() - 0.5) * 2 * sim.noise;
-      const oscillation = Math.sin(state.simPhase + index * 1.2) * sim.drift;
-      const correction = (sim.nominal - current) * 0.02;
-
-      let newValue = current + noise + oscillation + correction;
-      newValue = clamp(newValue, config.min, config.max);
-      newValue = roundValue(newValue, config.decimals);
-
-      state.values[key] = newValue;
+    Object.entries(COMPONENTS).forEach(([compId, comp], compIdx) => {
+      Object.entries(comp.params).forEach(([paramId, param], paramIdx) => {
+        const sim = param.sim;
+        const current = state.values[compId][paramId];
+        const noise = (Math.random() - 0.5) * 2 * sim.noise;
+        const oscillation = Math.sin(state.simPhase + compIdx * 1.1 + paramIdx * 0.7) * sim.drift;
+        const correction = (sim.nominal - current) * 0.02;
+        let newValue = current + noise + oscillation + correction;
+        newValue = clamp(newValue, param.min, param.max);
+        state.values[compId][paramId] = roundValue(newValue, param.decimals);
+      });
     });
   }
 
@@ -671,104 +946,398 @@ function simulationTick() {
   saveToLocalStorage();
 }
 
-/* ============================================================
-   GESTION DES VALEURS & ALARMES
-   ============================================================ */
+function setParamValue(compId, paramId, value, fromUser = false) {
+  const param = COMPONENTS[compId].params[paramId];
+  value = clamp(value, param.min, param.max);
+  value = roundValue(value, param.decimals);
+  state.values[compId][paramId] = value;
 
-/**
- * Définit manuellement la valeur d'un capteur (slider, input ou bouton ±)
- * @param {string} key - Identifiant capteur
- * @param {number} value - Nouvelle valeur
- * @param {boolean} fromUser - true si action utilisateur (active le mode manuel)
- */
-function setSensorValue(key, value, fromUser = false) {
-  const config = SENSORS[key];
-  value = clamp(value, config.min, config.max);
-  value = roundValue(value, config.decimals);
-  state.values[key] = value;
-
-  // Réglage manuel : activer le mode manuel automatiquement
   if (fromUser && !state.manualMode) {
     state.manualMode = true;
     if (dom.manualModeToggle) dom.manualModeToggle.checked = true;
+    if (dom.modeLabel) dom.modeLabel.textContent = 'Mode Manuel';
   }
 
   updateUI();
-
-  if (state.isRunning) {
+  if (state.isRunning || fromUser) {
     appendChartData();
   }
   saveToLocalStorage();
 }
 
-/**
- * Vérifie si une valeur dépasse le seuil configuré
- */
-function isAlarm(key, value) {
-  const threshold = SENSORS[key].threshold;
-
-  if (threshold.type === 'max') {
-    return value > threshold.value;
+function evaluateParamStatus(param, value) {
+  const t = param.threshold;
+  if (t.type === 'min') {
+    if (value <= t.critical) return 'critical';
+    if (value <= t.warning) return 'warning';
+    return 'normal';
   }
-  if (threshold.type === 'range') {
-    return value < threshold.min || value > threshold.max;
+  if (t.type === 'range') {
+    if (value < t.criticalMin || value > t.criticalMax) return 'critical';
+    if (value < t.warningMin || value > t.warningMax) return 'warning';
+    return 'normal';
   }
-  return false;
+  if (value >= t.critical) return 'critical';
+  if (value >= t.warning) return 'warning';
+  return 'normal';
 }
 
-/**
- * Met à jour l'ensemble de l'interface
- */
-function updateUI() {
-  let globalAlarm = false;
+function getParamFaultMessage(param, status) {
+  if (status === 'critical') return param.faultCritical;
+  if (status === 'warning') return param.faultWarning;
+  return null;
+}
 
-  Object.keys(SENSORS).forEach(key => {
-    const config = SENSORS[key];
-    const value = state.values[key];
-    const alarm = isAlarm(key, value);
-    const { card, value: valueEl, status, slider, input, panelSlider, panelInput, controlValue } = dom.sensors[key];
+function computeComponentState(compId) {
+  const comp = COMPONENTS[compId];
+  let health = 100;
+  let worstStatus = 'normal';
+  const paramStates = {};
+  let warningCount = 0;
+  let criticalCount = 0;
 
-    // Affichage valeur principale
-    valueEl.textContent = formatValue(value, config.decimals);
+  Object.entries(comp.params).forEach(([paramId, param]) => {
+    const value = state.values[compId][paramId];
+    const status = evaluateParamStatus(param, value);
+    paramStates[paramId] = { value, status, param };
 
-    // Synchroniser tous les contrôles (cartes + panneau réglage)
-    slider.value = value;
-    input.value = value;
-    if (panelSlider) panelSlider.value = value;
-    if (panelInput) panelInput.value = value;
-    if (controlValue) {
-      controlValue.textContent = `${formatValue(value, config.decimals)} ${config.unit}`;
-    }
-
-    // Badge VERT / ROUGE
-    status.textContent = alarm ? 'ROUGE' : 'VERT';
-    status.classList.toggle('alarm', alarm);
-
-    // Style carte
-    card.classList.toggle('status-ok', !alarm);
-    card.classList.toggle('status-alarm', alarm);
-
-    // Journaliser les transitions d'alarme
-    if (alarm && !state.previousAlarms[key]) {
-      addLog(`ALARME — ${config.label} : ${formatValue(value, config.decimals)} ${config.unit} (seuil dépassé)`, 'alarm');
-    } else if (!alarm && state.previousAlarms[key]) {
-      addLog(`${config.label} revenu à la normale : ${formatValue(value, config.decimals)} ${config.unit}`, 'ok');
-    }
-    state.previousAlarms[key] = alarm;
-
-    if (alarm) globalAlarm = true;
+    if (status === 'warning') { health -= 12; warningCount++; }
+    if (status === 'critical') { health -= 30; criticalCount++; }
+    if (status === 'critical') worstStatus = 'critical';
+    else if (status === 'warning' && worstStatus !== 'critical') worstStatus = 'warning';
   });
 
-  // État global moteur
-  dom.motorStatusIndicator.classList.toggle('alarm', globalAlarm);
-  dom.motorStatusText.textContent = globalAlarm ? 'ALARME' : 'OK';
-  dom.motorStatusText.classList.toggle('ok', !globalAlarm);
-  dom.motorStatusText.classList.toggle('alarm', globalAlarm);
+  health = Math.max(0, Math.min(100, health));
+  const operation = Math.max(25, 100 - criticalCount * OPERATION_REDUCTION_CRITICAL - warningCount * OPERATION_REDUCTION_WARNING);
+
+  return { health, status: worstStatus, paramStates, operation, warningCount, criticalCount };
 }
 
-/* ============================================================
-   GRAPHIQUES Chart.js
-   ============================================================ */
+function computeGlobalState() {
+  let totalWeight = 0;
+  let weightedHealth = 0;
+  let totalWarnings = 0;
+  let totalCriticals = 0;
+  let worstGlobal = 'normal';
+  const componentStates = {};
+
+  getActiveComponentIds().forEach(compId => {
+    const cs = computeComponentState(compId);
+    componentStates[compId] = cs;
+    const w = COMPONENTS[compId].weight;
+    totalWeight += w;
+    weightedHealth += cs.health * w;
+    totalWarnings += cs.warningCount;
+    totalCriticals += cs.criticalCount;
+    if (cs.status === 'critical') worstGlobal = 'critical';
+    else if (cs.status === 'warning' && worstGlobal !== 'critical') worstGlobal = 'warning';
+  });
+
+  const globalHealth = totalWeight ? Math.round(weightedHealth / totalWeight) : 100;
+  const operationLevel = Math.max(25, 100 - totalCriticals * GLOBAL_OPERATION_REDUCTION_CRITICAL - totalWarnings * GLOBAL_OPERATION_REDUCTION_WARNING);
+
+  return { globalHealth, operationLevel, worstGlobal, componentStates, totalWarnings, totalCriticals };
+}
+
+function getHealthLabel(health) {
+  for (const h of HEALTH_LABELS) {
+    if (health >= h.min) return h.label;
+  }
+  return 'Critique';
+}
+
+function getAvgTemperature() {
+  const temps = [];
+  ['stator', 'windings', 'rotor', 'bearings', 'ventilation'].forEach(compId => {
+    const v = state.values[compId];
+    if (!v) return;
+    if (v.temperature !== undefined) temps.push(v.temperature);
+    if (v.coolingTemp !== undefined) temps.push(v.coolingTemp);
+  });
+  return temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : 0;
+}
+
+function getAvgVibration() {
+  const vibs = [];
+  Object.entries(state.values).forEach(([, params]) => {
+    if (params.vibration !== undefined) vibs.push(params.vibration);
+  });
+  return vibs.length ? vibs.reduce((a, b) => a + b, 0) / vibs.length : 0;
+}
+
+function getEstimatedEfficiency(globalHealth, operationLevel) {
+  return Math.round((globalHealth * 0.6 + operationLevel * 0.4) * 0.92);
+}
+
+function playAlarmBeep() {
+  try {
+    if (!alarmAudioContext) alarmAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (alarmAudioContext.state === 'suspended') alarmAudioContext.resume();
+    const osc = alarmAudioContext.createOscillator();
+    const gain = alarmAudioContext.createGain();
+    osc.connect(gain);
+    gain.connect(alarmAudioContext.destination);
+    osc.frequency.value = 880;
+    osc.type = 'square';
+    gain.gain.value = 0.07;
+    const t = alarmAudioContext.currentTime;
+    osc.start(t);
+    osc.stop(t + 0.25);
+  } catch (e) { /* audio non disponible */ }
+}
+
+function startPersistentAlarm() {
+  if (state.alarmSoundActive) return;
+  state.alarmSoundActive = true;
+  playAlarmBeep();
+  alarmSoundInterval = setInterval(playAlarmBeep, 900);
+}
+
+function stopPersistentAlarm() {
+  state.alarmSoundActive = false;
+  if (alarmSoundInterval) {
+    clearInterval(alarmSoundInterval);
+    alarmSoundInterval = null;
+  }
+}
+
+function managePersistentAlarm(hasCriticalAlarms) {
+  if (hasCriticalAlarms) startPersistentAlarm();
+  else stopPersistentAlarm();
+}
+
+function updateUI() {
+  const global = computeGlobalState();
+  state.globalHealth = global.globalHealth;
+  state.operationLevel = global.operationLevel;
+
+  Object.entries(global.componentStates).forEach(([compId, cs]) => {
+    state.componentHealth[compId] = cs.health;
+
+    const card = document.getElementById(`card-${compId}`);
+    const badge = document.getElementById(`status-badge-${compId}`);
+    const healthBar = document.getElementById(`health-bar-${compId}`);
+    const healthVal = document.getElementById(`health-value-${compId}`);
+    const opEl = document.getElementById(`operation-${compId}`);
+
+    if (card) {
+      card.classList.remove('status-normal', 'status-warning', 'status-critical');
+      card.classList.add(`status-${cs.status}`);
+    }
+    if (badge) {
+      badge.textContent = STATUS_LABELS[cs.status];
+      badge.className = `component-status-badge status-${cs.status}`;
+    }
+    if (healthBar) {
+      healthBar.style.width = `${cs.health}%`;
+      healthBar.className = `health-bar health-${cs.status}`;
+    }
+    if (healthVal) healthVal.textContent = `${cs.health} %`;
+    if (opEl) opEl.textContent = `${cs.operation} %`;
+
+    Object.entries(cs.paramStates).forEach(([paramId, ps]) => {
+      const valEl = document.getElementById(`val-${compId}-${paramId}`);
+      const dotEl = document.getElementById(`dot-${compId}-${paramId}`);
+      const slider = document.getElementById(`slider-${compId}-${paramId}`);
+      const input = document.getElementById(`input-${compId}-${paramId}`);
+      const ctrlVal = document.getElementById(`ctrl-val-${compId}-${paramId}`);
+
+      if (valEl) valEl.textContent = `${formatValue(ps.value, ps.param.decimals)} ${ps.param.unit}`;
+      if (dotEl) dotEl.className = `param-status-dot ${ps.status}`;
+      if (slider) slider.value = ps.value;
+      if (input) input.value = ps.value;
+      if (ctrlVal) ctrlVal.textContent = `${formatValue(ps.value, ps.param.decimals)} ${ps.param.unit}`;
+
+      const alarmKey = `${compId}_${paramId}`;
+      const isAlarm = ps.status !== 'normal';
+      if (isAlarm && !state.previousAlarms[compId][paramId]) {
+        const fault = getParamFaultMessage(ps.param, ps.status);
+        addLog(
+          `ALARME [${COMPONENTS[compId].label}] — ${fault} : ${formatValue(ps.value, ps.param.decimals)} ${ps.param.unit}`,
+          ps.status === 'critical' ? 'alarm' : 'warning'
+        );
+        if (ps.status === 'critical') {
+          addLog(`Fonctionnement moteur réduit à ${global.operationLevel} % (était 100 %).`, 'alarm');
+        }
+      } else if (!isAlarm && state.previousAlarms[compId][paramId]) {
+        addLog(`${COMPONENTS[compId].label} — ${ps.param.label} revenu à la normale.`, 'ok');
+      }
+      state.previousAlarms[compId][paramId] = isAlarm;
+    });
+  });
+
+  // État global
+  const isGlobalAlarm = global.worstGlobal !== 'normal';
+  dom.motorStatusIndicator?.classList.toggle('alarm', global.worstGlobal === 'critical');
+  dom.motorStatusIndicator?.classList.toggle('warning', global.worstGlobal === 'warning');
+  if (dom.motorStatusText) {
+    dom.motorStatusText.textContent = STATUS_LABELS[global.worstGlobal].toUpperCase();
+    dom.motorStatusText.className = `status-value ${global.worstGlobal === 'normal' ? 'ok' : global.worstGlobal}`;
+  }
+  if (dom.healthStateLabel) dom.healthStateLabel.textContent = getHealthLabel(global.globalHealth);
+
+  if (dom.globalHealthBar) {
+    dom.globalHealthBar.style.width = `${global.globalHealth}%`;
+    dom.globalHealthBar.className = `health-bar health-${global.worstGlobal === 'normal' ? 'normal' : global.worstGlobal}`;
+  }
+  if (dom.globalHealthValue) dom.globalHealthValue.textContent = `${global.globalHealth} %`;
+  if (dom.operationLevelBar) dom.operationLevelBar.style.width = `${global.operationLevel}%`;
+  if (dom.operationLevelValue) dom.operationLevelValue.textContent = `${global.operationLevel} %`;
+
+  // KPIs
+  if (dom.kpiAvgTemp) dom.kpiAvgTemp.textContent = `${formatValue(getAvgTemperature(), 1)} °C`;
+  if (dom.kpiAvgVibration) dom.kpiAvgVibration.textContent = `${formatValue(getAvgVibration(), 1)} mm/s`;
+  if (dom.kpiEfficiency) dom.kpiEfficiency.textContent = `${getEstimatedEfficiency(global.globalHealth, global.operationLevel)} %`;
+  if (dom.kpiCurrent) dom.kpiCurrent.textContent = `${formatValue(state.values.stator?.current ?? 0, 1)} A`;
+  if (dom.kpiVoltage) dom.kpiVoltage.textContent = `${formatValue(state.values.stator?.voltage ?? 0, 0)} V`;
+  if (dom.kpiSpeed) dom.kpiSpeed.textContent = `${formatValue(state.values.rotor?.speed ?? 0, 0)} tr/min`;
+  if (dom.kpiPressure) dom.kpiPressure.textContent = `${formatValue(state.values.bearings?.pressure ?? 0, 2)} bar`;
+
+  updateActiveAlarms(global);
+  updateMotorDiagram(global);
+  animateFan(global.operationLevel);
+  managePersistentAlarm(global.totalCriticals > 0);
+
+  document.querySelectorAll('[data-component-manual]').forEach(el => {
+    const compId = el.dataset.componentManual;
+    if (COMPONENTS[compId]?.optional) {
+      el.classList.toggle('d-none', !state.ventilationPresent);
+    }
+  });
+}
+
+function updateActiveAlarms(global) {
+  if (!dom.activeAlarmsList) return;
+  const alarms = [];
+
+  Object.entries(global.componentStates).forEach(([compId, cs]) => {
+    Object.entries(cs.paramStates).forEach(([paramId, ps]) => {
+      if (ps.status === 'normal') return;
+      alarms.push({
+        compId,
+        compLabel: COMPONENTS[compId].label,
+        paramLabel: ps.param.label,
+        value: ps.value,
+        unit: ps.param.unit,
+        decimals: ps.param.decimals,
+        status: ps.status,
+        fault: getParamFaultMessage(ps.param, ps.status)
+      });
+    });
+  });
+
+  if (dom.alarmCountBadge) {
+    dom.alarmCountBadge.textContent = alarms.length;
+    dom.alarmCountBadge.classList.toggle('d-none', alarms.length === 0);
+  }
+  dom.alarmPanel?.classList.toggle('has-alarms', alarms.some(a => a.status === 'critical'));
+
+  if (!alarms.length) {
+    dom.activeAlarmsList.innerHTML = '<p class="text-muted mb-0 no-alarm-msg"><i class="bi bi-check-circle"></i> Aucune alarme active — tous les composants sont normaux.</p>';
+    return;
+  }
+
+  dom.activeAlarmsList.innerHTML = alarms.map(a => `
+    <div class="active-alarm-item status-${a.status}">
+      <div class="active-alarm-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <div class="active-alarm-body">
+        <strong>${a.compLabel}</strong> — ${a.fault}
+        <div class="active-alarm-detail">${a.paramLabel} : ${formatValue(a.value, a.decimals)} ${a.unit}</div>
+      </div>
+      <span class="badge alarm-badge-${a.status}">${STATUS_LABELS[a.status]}</span>
+    </div>`).join('');
+}
+
+function updateMotorDiagram(global) {
+  dom.diagramParts?.forEach(part => {
+    const compId = part.dataset.component;
+    if (COMPONENTS[compId]?.optional && !state.ventilationPresent) return;
+    const cs = global.componentStates[compId];
+    if (!cs) return;
+    part.classList.remove('diagram-normal', 'diagram-warning', 'diagram-critical');
+    part.classList.add(`diagram-${cs.status}`);
+  });
+}
+
+function animateFan(operationLevel) {
+  if (!dom.fanBlades) return;
+  const fanActive = state.isRunning && state.ventilationPresent;
+  const duration = fanActive ? Math.max(0.3, 2 - operationLevel / 60) : 0;
+  dom.fanBlades.style.animationDuration = duration ? `${duration}s` : '0s';
+  dom.fanBlades.classList.toggle('spinning', fanActive && duration > 0);
+}
+
+function getComponentChartOptions() {
+  const colors = getChartThemeColors();
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 200 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        labels: { color: colors.legend, font: { size: 9 }, boxWidth: 10 }
+      }
+    },
+    scales: {
+      x: {
+        display: false,
+        ticks: { color: colors.tick },
+        grid: { color: colors.grid }
+      },
+      y: {
+        display: true,
+        ticks: { color: colors.tick, font: { size: 8 }, maxTicksLimit: 4 },
+        grid: { color: colors.grid }
+      }
+    }
+  };
+}
+
+function initComponentCharts() {
+  componentCharts = {};
+  Object.keys(COMPONENTS).forEach(compId => {
+    const canvas = document.getElementById(`comp-chart-${compId}`);
+    if (!canvas) return;
+
+    const paramEntries = Object.entries(COMPONENTS[compId].params).slice(0, 3);
+    componentCharts[compId] = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: paramEntries.map(([paramId, param], i) => ({
+          label: param.label,
+          paramId,
+          data: [],
+          borderColor: COMPONENT_CHART_COLORS[i % COMPONENT_CHART_COLORS.length],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3
+        }))
+      },
+      options: getComponentChartOptions()
+    });
+  });
+}
+
+function appendComponentChartData() {
+  if (!state.chartLabels.length) return;
+
+  Object.keys(componentCharts).forEach(compId => {
+    if (COMPONENTS[compId]?.optional && !state.ventilationPresent) return;
+    const chart = componentCharts[compId];
+    if (!chart) return;
+
+    chart.data.labels = [...state.chartLabels];
+    chart.data.datasets.forEach(ds => {
+      const val = state.values[compId]?.[ds.paramId];
+      ds.data.push(val !== undefined ? val : null);
+      if (ds.data.length > CHART_MAX_POINTS) ds.data.shift();
+    });
+    chart.update('none');
+  });
+}
 
 /**
  * Configuration commune des graphiques (couleurs adaptées au thème)
@@ -816,10 +1385,9 @@ function getChartOptions(yLabel) {
  * Met à jour les couleurs des graphiques après changement de thème
  */
 function refreshChartsTheme() {
-  if (!chartTempPressure || !chartCurrentSpeed) return;
-
   const colors = getChartThemeColors();
-  [chartTempPressure, chartCurrentSpeed].forEach(chart => {
+  [chartTemperatures, chartVibrations, chartHealth].forEach(chart => {
+    if (!chart) return;
     chart.options.plugins.legend.labels.color = colors.legend;
     Object.values(chart.options.scales).forEach(scale => {
       if (scale.ticks) scale.ticks.color = colors.tick;
@@ -828,128 +1396,97 @@ function refreshChartsTheme() {
     });
     chart.update('none');
   });
+
+  Object.values(componentCharts).forEach(chart => {
+    chart.options.plugins.legend.labels.color = colors.legend;
+    Object.values(chart.options.scales).forEach(scale => {
+      if (scale.ticks) scale.ticks.color = colors.tick;
+      if (scale.grid) scale.grid.color = colors.grid;
+    });
+    chart.update('none');
+  });
 }
 
-/**
- * Initialise les deux graphiques Chart.js
- */
 function initCharts() {
-  const ctx1 = document.getElementById('chartTempPressure').getContext('2d');
-  chartTempPressure = new Chart(ctx1, {
+  const ctxTemp = document.getElementById('chartTemperatures')?.getContext('2d');
+  const ctxVib = document.getElementById('chartVibrations')?.getContext('2d');
+  const ctxHealth = document.getElementById('chartHealth')?.getContext('2d');
+  if (!ctxTemp || !ctxVib || !ctxHealth) return;
+
+  chartTemperatures = new Chart(ctxTemp, {
     type: 'line',
     data: {
       labels: [],
       datasets: [
-        {
-          label: 'Température (°C)',
-          data: [],
-          borderColor: '#f85149',
-          backgroundColor: 'rgba(248, 81, 73, 0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: true
-        },
-        {
-          label: 'Pression (bar)',
-          data: [],
-          borderColor: '#388bfd',
-          backgroundColor: 'rgba(56, 139, 253, 0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: true
-        }
+        { label: 'Stator', data: [], borderColor: '#f85149', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Enroulements', data: [], borderColor: '#d29922', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Rotor', data: [], borderColor: '#388bfd', borderWidth: 2, pointRadius: 0, tension: 0.3 }
       ]
     },
-    options: getChartOptions('Valeur')
+    options: getChartOptions('°C')
   });
 
-  const ctx2 = document.getElementById('chartCurrentSpeed').getContext('2d');
-  chartCurrentSpeed = new Chart(ctx2, {
+  chartVibrations = new Chart(ctxVib, {
     type: 'line',
     data: {
       labels: [],
       datasets: [
-        {
-          label: 'Courant (A)',
-          data: [],
-          borderColor: '#d29922',
-          backgroundColor: 'rgba(210, 153, 34, 0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: true
-        },
-        {
-          label: 'Vitesse asynchrone (tr/min)',
-          data: [],
-          borderColor: '#39d353',
-          backgroundColor: 'rgba(57, 211, 83, 0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: true,
-          yAxisID: 'y1'
-        }
+        { label: 'Stator', data: [], borderColor: '#f85149', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Rotor', data: [], borderColor: '#388bfd', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'Arbre', data: [], borderColor: '#39d353', borderWidth: 2, pointRadius: 0, tension: 0.3 }
       ]
     },
-    options: {
-      ...getChartOptions('Courant (A)'),
-      scales: (() => {
-        const colors = getChartThemeColors();
-        return {
-          x: {
-            ticks: { color: colors.tick, maxTicksLimit: 8, font: { size: 10 } },
-            grid: { color: colors.grid }
-          },
-          y: {
-            position: 'left',
-            ticks: { color: colors.tick, font: { size: 10 } },
-            grid: { color: colors.grid },
-            title: { display: true, text: 'Courant (A)', color: colors.legend, font: { size: 11 } }
-          },
-          y1: {
-            position: 'right',
-            ticks: { color: colors.tick, font: { size: 10 } },
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: 'Vitesse (tr/min)', color: colors.legend, font: { size: 11 } }
-          }
-        };
-      })()
-    }
+    options: getChartOptions('mm/s')
+  });
+
+  chartHealth = new Chart(ctxHealth, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Santé (%)', data: [], borderColor: '#39d353', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true, backgroundColor: 'rgba(57,211,83,0.1)' },
+        { label: 'Fonctionnement (%)', data: [], borderColor: '#388bfd', borderWidth: 2, pointRadius: 0, tension: 0.3 }
+      ]
+    },
+    options: getChartOptions('%')
   });
 }
 
-/**
- * Ajoute un point de données aux graphiques
- */
 function appendChartData() {
   const now = new Date();
   const label = now.toLocaleTimeString('fr-FR');
-
   state.chartLabels.push(label);
-  if (state.chartLabels.length > CHART_MAX_POINTS) {
-    state.chartLabels.shift();
+  if (state.chartLabels.length > CHART_MAX_POINTS) state.chartLabels.shift();
+
+  const global = computeGlobalState();
+
+  if (chartTemperatures) {
+    chartTemperatures.data.labels = [...state.chartLabels];
+    chartTemperatures.data.datasets[0].data.push(state.values.stator.temperature);
+    chartTemperatures.data.datasets[1].data.push(state.values.windings.temperature);
+    chartTemperatures.data.datasets[2].data.push(state.values.rotor.temperature);
+    chartTemperatures.data.datasets.forEach(ds => { if (ds.data.length > CHART_MAX_POINTS) ds.data.shift(); });
+    chartTemperatures.update('none');
   }
 
-  // Graphique Température & Pression
-  chartTempPressure.data.labels = [...state.chartLabels];
-  chartTempPressure.data.datasets[0].data.push(state.values.temperature);
-  chartTempPressure.data.datasets[1].data.push(state.values.pressure);
-  if (chartTempPressure.data.datasets[0].data.length > CHART_MAX_POINTS) {
-    chartTempPressure.data.datasets.forEach(ds => ds.data.shift());
+  if (chartVibrations) {
+    chartVibrations.data.labels = [...state.chartLabels];
+    chartVibrations.data.datasets[0].data.push(state.values.stator.vibration);
+    chartVibrations.data.datasets[1].data.push(state.values.rotor.vibration);
+    chartVibrations.data.datasets[2].data.push(state.values.shaft.vibration);
+    chartVibrations.data.datasets.forEach(ds => { if (ds.data.length > CHART_MAX_POINTS) ds.data.shift(); });
+    chartVibrations.update('none');
   }
-  chartTempPressure.update('none');
 
-  // Graphique Courant & Vitesse
-  chartCurrentSpeed.data.labels = [...state.chartLabels];
-  chartCurrentSpeed.data.datasets[0].data.push(state.values.current);
-  chartCurrentSpeed.data.datasets[1].data.push(state.values.speed);
-  if (chartCurrentSpeed.data.datasets[0].data.length > CHART_MAX_POINTS) {
-    chartCurrentSpeed.data.datasets.forEach(ds => ds.data.shift());
+  if (chartHealth) {
+    chartHealth.data.labels = [...state.chartLabels];
+    chartHealth.data.datasets[0].data.push(global.globalHealth);
+    chartHealth.data.datasets[1].data.push(global.operationLevel);
+    chartHealth.data.datasets.forEach(ds => { if (ds.data.length > CHART_MAX_POINTS) ds.data.shift(); });
+    chartHealth.update('none');
   }
-  chartCurrentSpeed.update('none');
+
+  appendComponentChartData();
 }
 
 /* ============================================================
@@ -994,61 +1531,97 @@ function saveToLocalStorage() {
   try {
     const data = {
       values: state.values,
+      globalHealth: state.globalHealth,
+      operationLevel: state.operationLevel,
+      ventilationPresent: state.ventilationPresent,
       chartLabels: state.chartLabels,
       chartData: {
-        temperature: chartTempPressure?.data.datasets[0].data || [],
-        pressure: chartTempPressure?.data.datasets[1].data || [],
-        current: chartCurrentSpeed?.data.datasets[0].data || [],
-        speed: chartCurrentSpeed?.data.datasets[1].data || []
+        statorTemp: chartTemperatures?.data.datasets[0].data || [],
+        windingsTemp: chartTemperatures?.data.datasets[1].data || [],
+        rotorTemp: chartTemperatures?.data.datasets[2].data || [],
+        statorVib: chartVibrations?.data.datasets[0].data || [],
+        rotorVib: chartVibrations?.data.datasets[1].data || [],
+        shaftVib: chartVibrations?.data.datasets[2].data || [],
+        health: chartHealth?.data.datasets[0].data || [],
+        operation: chartHealth?.data.datasets[1].data || [],
+        componentCharts: Object.fromEntries(
+          Object.entries(componentCharts).map(([compId, chart]) => [
+            compId,
+            chart.data.datasets.map(ds => ({ paramId: ds.paramId, data: ds.data }))
+          ])
+        )
       }
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    // localStorage indisponible — ignorer silencieusement
-  }
+  } catch (e) { /* ignore */ }
 }
 
-/**
- * Restaure l'état depuis localStorage
- */
 function loadFromLocalStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-
     const data = JSON.parse(raw);
 
     if (data.values) {
-      Object.keys(SENSORS).forEach(key => {
-        if (data.values[key] !== undefined) {
-          state.values[key] = clamp(data.values[key], SENSORS[key].min, SENSORS[key].max);
-        }
+      Object.keys(COMPONENTS).forEach(compId => {
+        if (!data.values[compId]) return;
+        Object.keys(COMPONENTS[compId].params).forEach(paramId => {
+          if (data.values[compId][paramId] !== undefined) {
+            const p = COMPONENTS[compId].params[paramId];
+            state.values[compId][paramId] = clamp(data.values[compId][paramId], p.min, p.max);
+          }
+        });
       });
+    }
+
+    if (data.ventilationPresent !== undefined) {
+      state.ventilationPresent = data.ventilationPresent;
+      if (dom.ventilationToggle) dom.ventilationToggle.checked = state.ventilationPresent;
+      updateVentilationVisibility();
     }
 
     if (data.chartLabels && data.chartData) {
       state.chartLabels = data.chartLabels.slice(-CHART_MAX_POINTS);
+      const cd = data.chartData;
 
-      if (chartTempPressure) {
-        chartTempPressure.data.labels = [...state.chartLabels];
-        chartTempPressure.data.datasets[0].data = (data.chartData.temperature || []).slice(-CHART_MAX_POINTS);
-        chartTempPressure.data.datasets[1].data = (data.chartData.pressure || []).slice(-CHART_MAX_POINTS);
-        chartTempPressure.update('none');
+      if (chartTemperatures) {
+        chartTemperatures.data.labels = [...state.chartLabels];
+        chartTemperatures.data.datasets[0].data = (cd.statorTemp || []).slice(-CHART_MAX_POINTS);
+        chartTemperatures.data.datasets[1].data = (cd.windingsTemp || []).slice(-CHART_MAX_POINTS);
+        chartTemperatures.data.datasets[2].data = (cd.rotorTemp || []).slice(-CHART_MAX_POINTS);
+        chartTemperatures.update('none');
+      }
+      if (chartVibrations) {
+        chartVibrations.data.labels = [...state.chartLabels];
+        chartVibrations.data.datasets[0].data = (cd.statorVib || []).slice(-CHART_MAX_POINTS);
+        chartVibrations.data.datasets[1].data = (cd.rotorVib || []).slice(-CHART_MAX_POINTS);
+        chartVibrations.data.datasets[2].data = (cd.shaftVib || []).slice(-CHART_MAX_POINTS);
+        chartVibrations.update('none');
+      }
+      if (chartHealth) {
+        chartHealth.data.labels = [...state.chartLabels];
+        chartHealth.data.datasets[0].data = (cd.health || []).slice(-CHART_MAX_POINTS);
+        chartHealth.data.datasets[1].data = (cd.operation || []).slice(-CHART_MAX_POINTS);
+        chartHealth.update('none');
       }
 
-      if (chartCurrentSpeed) {
-        chartCurrentSpeed.data.labels = [...state.chartLabels];
-        chartCurrentSpeed.data.datasets[0].data = (data.chartData.current || []).slice(-CHART_MAX_POINTS);
-        chartCurrentSpeed.data.datasets[1].data = (data.chartData.speed || []).slice(-CHART_MAX_POINTS);
-        chartCurrentSpeed.update('none');
+      if (cd.componentCharts) {
+        Object.entries(cd.componentCharts).forEach(([compId, datasets]) => {
+          const chart = componentCharts[compId];
+          if (!chart) return;
+          chart.data.labels = [...state.chartLabels];
+          datasets.forEach(saved => {
+            const ds = chart.data.datasets.find(d => d.paramId === saved.paramId);
+            if (ds) ds.data = (saved.data || []).slice(-CHART_MAX_POINTS);
+          });
+          chart.update('none');
+        });
       }
     }
 
     updateUI();
     addLog('État restauré depuis la session précédente.', 'info');
-  } catch (e) {
-    // Données corrompues — ignorer
-  }
+  } catch (e) { /* ignore */ }
 }
 
 /* ============================================================
@@ -1081,7 +1654,7 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-bs-theme', theme === 'light' ? 'light' : 'dark');
   localStorage.setItem(THEME_STORAGE_KEY, theme);
   updateThemeToggleButton();
-  if (chartTempPressure && chartCurrentSpeed) {
+  if (chartTemperatures || chartVibrations || chartHealth) {
     refreshChartsTheme();
   }
 }
@@ -1149,23 +1722,23 @@ const INTERVENTION_LABELS = {
 
 /** Snapshot des mesures moteur depuis le dashboard */
 function getCurrentMotorSnapshot() {
-  const alarms = {};
+  const global = computeGlobalState();
   const alarmDetails = [];
 
-  Object.keys(SENSORS).forEach(key => {
-    const alarm = isAlarm(key, state.values[key]);
-    alarms[key] = alarm;
-    if (alarm) {
-      const config = SENSORS[key];
-      alarmDetails.push(`${config.label} : ${formatValue(state.values[key], config.decimals)} ${config.unit}`);
-    }
+  Object.entries(global.componentStates).forEach(([compId, cs]) => {
+    Object.entries(cs.paramStates).forEach(([paramId, ps]) => {
+      if (ps.status === 'normal') return;
+      const fault = getParamFaultMessage(ps.param, ps.status);
+      alarmDetails.push(`[${COMPONENTS[compId].label}] ${fault} : ${formatValue(ps.value, ps.param.decimals)} ${ps.param.unit}`);
+    });
   });
 
-  const motorStatus = alarmDetails.length ? 'ALARME' : 'OK';
+  const motorStatus = global.worstGlobal === 'critical' ? 'ALARME' : global.worstGlobal === 'warning' ? 'ALERTE' : 'OK';
 
   return {
-    values: { ...state.values },
-    alarms,
+    values: JSON.parse(JSON.stringify(state.values)),
+    globalHealth: global.globalHealth,
+    operationLevel: global.operationLevel,
     motorStatus,
     alarmDetails,
     capturedAt: new Date().toISOString()
@@ -1190,26 +1763,28 @@ function getMotorSnapshotFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-
     const data = JSON.parse(raw);
-    const values = data.values || {};
-    const alarmDetails = [];
-    const alarms = {};
+    if (!data.values || !data.values.stator) return null;
 
-    Object.keys(SENSORS).forEach(key => {
-      if (values[key] === undefined) return;
-      const alarm = isAlarm(key, values[key]);
-      alarms[key] = alarm;
-      if (alarm) {
-        const config = SENSORS[key];
-        alarmDetails.push(`${config.label} : ${formatValue(values[key], config.decimals)} ${config.unit}`);
-      }
+    const savedValues = data.values;
+    const prevValues = state.values;
+    state.values = savedValues;
+    const global = computeGlobalState();
+    state.values = prevValues;
+
+    const alarmDetails = [];
+    Object.entries(global.componentStates).forEach(([compId, cs]) => {
+      Object.entries(cs.paramStates).forEach(([paramId, ps]) => {
+        if (ps.status === 'normal') return;
+        alarmDetails.push(`[${COMPONENTS[compId].label}] ${getParamFaultMessage(ps.param, ps.status)}`);
+      });
     });
 
     return {
-      values,
-      alarms,
-      motorStatus: alarmDetails.length ? 'ALARME' : 'OK',
+      values: savedValues,
+      globalHealth: global.globalHealth,
+      operationLevel: global.operationLevel,
+      motorStatus: global.worstGlobal !== 'normal' ? 'ALARME' : 'OK',
       alarmDetails,
       capturedAt: new Date().toISOString()
     };
@@ -1267,7 +1842,11 @@ function createEmptyIntervention(snapshot) {
     type,
     priorite,
     statut: 'ouverte',
-    mesures: snapshot?.values || {},
+    mesures: {
+      ...(snapshot?.values || {}),
+      globalHealth: snapshot?.globalHealth,
+      operationLevel: snapshot?.operationLevel
+    },
     motorStatus: snapshot?.motorStatus || 'OK',
     motif,
     actions: '',
@@ -1355,16 +1934,28 @@ function fillMeasureDisplay(snapshot) {
     if (el) el.textContent = val !== undefined ? `${val} ${unit}` : '—';
   };
 
-  set('measureTemperature', values.temperature !== undefined ? formatValue(values.temperature, 1) : undefined, '°C');
-  set('measurePressure', values.pressure !== undefined ? formatValue(values.pressure, 2) : undefined, 'bar');
-  set('measureCurrent', values.current !== undefined ? formatValue(values.current, 1) : undefined, 'A');
-  set('measureSpeed', values.speed !== undefined ? formatValue(values.speed, 0) : undefined, 'tr/min');
+  set('measureTemperature', values.stator?.temperature !== undefined ? formatValue(values.stator.temperature, 1) : undefined, '°C');
+  set('measureCurrent', values.stator?.current !== undefined ? formatValue(values.stator.current, 1) : undefined, 'A');
+  set('measureSpeed', values.rotor?.speed !== undefined ? formatValue(values.rotor.speed, 0) : undefined, 'tr/min');
+
+  const pressureEl = document.getElementById('measurePressure');
+  if (pressureEl) {
+    const pressure = values.bearings?.pressure;
+    pressureEl.textContent = pressure !== undefined ? `${formatValue(pressure, 2)} bar` : '—';
+  }
+
+  const healthEl = document.getElementById('measureHealth');
+  if (healthEl) {
+    const health = snapshot?.globalHealth;
+    healthEl.textContent = health !== undefined ? `${health} %` : '—';
+  }
 
   const badge = document.getElementById('measureMotorStatus');
   if (badge) {
     const status = snapshot?.motorStatus || '—';
-    badge.textContent = `État moteur : ${status}`;
-    badge.className = `badge ${status === 'ALARME' ? 'bg-danger' : status === 'OK' ? 'bg-success' : 'bg-secondary'}`;
+    const healthInfo = snapshot?.globalHealth !== undefined ? ` — Santé ${snapshot.globalHealth}%` : '';
+    badge.textContent = `État moteur : ${status}${healthInfo}`;
+    badge.className = `badge ${status === 'ALARME' ? 'bg-danger' : status === 'ALERTE' ? 'bg-warning text-dark' : status === 'OK' ? 'bg-success' : 'bg-secondary'}`;
   }
 }
 
@@ -1431,7 +2022,11 @@ function readInterventionFormData() {
     type: document.getElementById('fieldType').value,
     priorite: document.getElementById('fieldPriorite').value,
     statut: document.getElementById('fieldStatut').value,
-    mesures: snapshot?.values || existing?.mesures || {},
+    mesures: {
+      ...(snapshot?.values || existing?.mesures || {}),
+      globalHealth: snapshot?.globalHealth ?? existing?.mesures?.globalHealth,
+      operationLevel: snapshot?.operationLevel ?? existing?.mesures?.operationLevel
+    },
     motorStatus: snapshot?.motorStatus || existing?.motorStatus || 'OK',
     motif: document.getElementById('fieldMotif').value.trim(),
     actions: document.getElementById('fieldActions').value.trim(),
@@ -1589,12 +2184,16 @@ function showInterventionPreview(id) {
       <h3 class="print-section-title">Mesures moteur enregistrées</h3>
       <table class="print-table">
         <tr>
-          <th>Température</th><td>${m.temperature ?? '—'} °C</td>
-          <th>Pression</th><td>${m.pressure ?? '—'} bar</td>
+          <th>Temp. stator</th><td>${m.stator?.temperature ?? '—'} °C</td>
+          <th>Temp. enroulements</th><td>${m.windings?.temperature ?? '—'} °C</td>
         </tr>
         <tr>
-          <th>Courant</th><td>${m.current ?? '—'} A</td>
-          <th>Vitesse asynchrone</th><td>${m.speed ?? '—'} tr/min</td>
+          <th>Courant</th><td>${m.stator?.current ?? '—'} A</td>
+          <th>Pression paliers</th><td>${m.bearings?.pressure ?? '—'} bar</td>
+        </tr>
+        <tr>
+          <th>Vitesse rotor</th><td>${m.rotor?.speed ?? '—'} tr/min</td>
+          <th>Santé moteur</th><td>${item.mesures?.globalHealth ?? '—'} %</td>
         </tr>
         <tr><th>État moteur</th><td colspan="3">${item.motorStatus}</td></tr>
       </table>

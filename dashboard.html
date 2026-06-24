@@ -5,58 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>(function(){var t=localStorage.getItem('motorSupervisionTheme')||'dark';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t==='light'?'light':'dark');})();</script>
   <title>Dashboard — Supervision Moteur Asynchrone</title>
-
-  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <!-- Custom styles -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-page="dashboard">
 
-  <!-- En-tête industriel -->
   <header class="app-header">
     <div class="container-fluid">
       <div class="row align-items-center">
         <div class="col-md-5">
           <div class="d-flex align-items-center gap-3">
-            <div class="header-icon">
-              <i class="bi bi-gear-wide-connected"></i>
-            </div>
+            <div class="header-icon"><i class="bi bi-gear-wide-connected"></i></div>
             <div>
               <h1 class="header-title mb-0">Supervision Moteur Asynchrone</h1>
-              <p class="header-subtitle mb-0">Système de maintenance prédictive — Simulation temps réel</p>
+              <p class="header-subtitle mb-0">Diagnostic &amp; simulation temps réel — Triphasé</p>
             </div>
           </div>
         </div>
         <div class="col-md-7 text-md-end mt-3 mt-md-0">
           <nav class="app-nav d-flex flex-wrap align-items-center justify-content-md-end gap-2 mb-2">
-            <a href="dashboard.html" class="nav-app-link" data-page="dashboard">
-              <i class="bi bi-speedometer2"></i> Dashboard
-            </a>
-            <a href="intervention.html" class="nav-app-link" data-page="intervention">
-              <i class="bi bi-clipboard-check"></i> Interventions
-            </a>
-            <a href="admin.html" class="nav-app-link" data-page="admin">
-              <i class="bi bi-person-badge"></i> Espace Admin
-            </a>
+            <a href="dashboard.html" class="nav-app-link" data-page="dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a>
+            <a href="intervention.html" class="nav-app-link" data-page="intervention"><i class="bi bi-clipboard-check"></i> Interventions</a>
+            <a href="admin.html" class="nav-app-link" data-page="admin"><i class="bi bi-person-badge"></i> Espace Admin</a>
           </nav>
           <div class="header-meta d-flex flex-wrap align-items-center justify-content-md-end gap-2">
-            <span class="user-badge" id="userBadge">
-              <i class="bi bi-person-circle"></i>
-              <span id="loggedInUser">Abdel KAWIL</span>
-            </span>
+            <span class="user-badge" id="userBadge"><i class="bi bi-person-circle"></i> <span id="loggedInUser">Abdel KAWIL</span></span>
             <span id="currentDateTime" class="datetime-display"></span>
             <span class="badge bg-secondary" id="simulationBadge">SIMULATION ARRÊTÉE</span>
-            <button class="btn btn-toolbar btn-sm" id="btnThemeToggle" title="Changer le thème">
-              <i class="bi bi-sun-fill"></i>
-            </button>
-            <button class="btn btn-outline-light btn-sm btn-logout" id="btnLogout" title="Déconnexion">
-              <i class="bi bi-box-arrow-right"></i> Logout
-            </button>
+            <button class="btn btn-toolbar btn-sm" id="btnThemeToggle" title="Changer le thème"><i class="bi bi-sun-fill"></i></button>
+            <button class="btn btn-outline-light btn-sm btn-logout" id="btnLogout" title="Déconnexion"><i class="bi bi-box-arrow-right"></i> Logout</button>
           </div>
         </div>
       </div>
@@ -65,259 +44,229 @@
 
   <main class="container-fluid py-4">
 
-    <!-- Barre d'état moteur + contrôles -->
+    <!-- Barre d'état global -->
     <section class="row mb-4">
       <div class="col-12">
         <div class="card status-bar-card">
-          <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <div class="motor-status d-flex align-items-center gap-3">
-              <div class="status-indicator" id="motorStatusIndicator"></div>
-              <div>
-                <span class="status-label">ÉTAT MOTEUR :</span>
-                <span class="status-value" id="motorStatusText">OK</span>
+          <div class="card-body">
+            <div class="row align-items-center g-3">
+              <div class="col-lg-3">
+                <div class="motor-status d-flex align-items-center gap-3">
+                  <div class="status-indicator" id="motorStatusIndicator"></div>
+                  <div>
+                    <span class="status-label">ÉTAT GLOBAL</span>
+                    <span class="status-value" id="motorStatusText">NORMAL</span>
+                    <span class="health-label d-block" id="healthStateLabel">Excellent</span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="control-buttons d-flex flex-wrap gap-2">
-              <button class="btn btn-success btn-control" id="btnStart">
-                <i class="bi bi-play-fill"></i> Start
-              </button>
-              <button class="btn btn-danger btn-control" id="btnStop" disabled>
-                <i class="bi bi-stop-fill"></i> Stop
-              </button>
-              <button class="btn btn-warning btn-control" id="btnReset">
-                <i class="bi bi-arrow-counterclockwise"></i> Reset
-              </button>
-              <a href="intervention.html" class="btn btn-info btn-control" id="btnIntervention" title="Créer une fiche d'intervention">
-                <i class="bi bi-clipboard-plus"></i> Fiche intervention
-              </a>
+              <div class="col-lg-5">
+                <div class="global-kpi-row">
+                  <div class="global-kpi">
+                    <span class="global-kpi-label">Santé moteur</span>
+                    <div class="health-bar-wrap">
+                      <div class="health-bar" id="globalHealthBar" style="width:100%"></div>
+                    </div>
+                    <span class="global-kpi-value" id="globalHealthValue">100 %</span>
+                  </div>
+                  <div class="global-kpi">
+                    <span class="global-kpi-label">Niveau fonctionnement</span>
+                    <div class="health-bar-wrap operation">
+                      <div class="health-bar operation-bar" id="operationLevelBar" style="width:100%"></div>
+                    </div>
+                    <span class="global-kpi-value" id="operationLevelValue">100 %</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-4">
+                <div class="control-buttons d-flex flex-wrap gap-2 justify-content-lg-end">
+                  <div class="form-check form-switch manual-mode-switch mb-0 me-2 align-self-center">
+                    <input class="form-check-input" type="checkbox" role="switch" id="manualModeToggle">
+                    <label class="form-check-label" for="manualModeToggle" id="modeLabel">Mode Auto</label>
+                  </div>
+                  <div class="form-check form-switch mb-0 me-2 align-self-center">
+                    <input class="form-check-input" type="checkbox" role="switch" id="ventilationToggle" checked>
+                    <label class="form-check-label" for="ventilationToggle">Ventilation</label>
+                  </div>
+                  <button class="btn btn-success btn-control btn-sm" id="btnStart"><i class="bi bi-play-fill"></i> Start</button>
+                  <button class="btn btn-danger btn-control btn-sm" id="btnStop" disabled><i class="bi bi-stop-fill"></i> Stop</button>
+                  <button class="btn btn-warning btn-control btn-sm" id="btnReset"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+                  <a href="intervention.html" class="btn btn-info btn-control btn-sm" id="btnIntervention"><i class="bi bi-clipboard-plus"></i> Intervention</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Panneau de réglage manuel du moteur -->
+    <!-- Schéma moteur + KPIs globaux -->
+    <section class="row g-4 mb-4">
+      <div class="col-lg-5">
+        <div class="card motor-diagram-card h-100">
+          <div class="card-header chart-header"><i class="bi bi-diagram-3"></i> Schéma moteur asynchrone triphasé</div>
+          <div class="card-body">
+            <div class="motor-diagram" id="motorDiagram">
+              <svg viewBox="0 0 420 280" class="motor-svg" aria-label="Schéma moteur">
+                <defs>
+                  <linearGradient id="motorBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--diagram-body-light)"/>
+                    <stop offset="100%" stop-color="var(--diagram-body-dark)"/>
+                  </linearGradient>
+                </defs>
+                <!-- Carcasse / Stator -->
+                <ellipse cx="210" cy="140" rx="95" ry="75" fill="url(#motorBodyGrad)" stroke="var(--diagram-stroke)" stroke-width="2" class="diagram-part" data-component="stator"/>
+                <ellipse cx="210" cy="140" rx="70" ry="52" fill="none" stroke="var(--diagram-stroke)" stroke-width="1.5" stroke-dasharray="4 3" class="diagram-part" data-component="windings"/>
+                <!-- Rotor -->
+                <circle cx="210" cy="140" r="38" fill="var(--diagram-rotor)" stroke="var(--diagram-stroke)" stroke-width="2" class="diagram-part" data-component="rotor"/>
+                <circle cx="210" cy="140" r="8" fill="var(--diagram-shaft)" class="diagram-part" data-component="shaft"/>
+                <!-- Arbre -->
+                <rect x="248" y="132" width="120" height="16" rx="4" fill="var(--diagram-shaft)" stroke="var(--diagram-stroke)" stroke-width="1.5" class="diagram-part" data-component="shaft"/>
+                <!-- Paliers -->
+                <rect x="155" y="205" width="30" height="28" rx="4" fill="var(--diagram-bearing)" stroke="var(--diagram-stroke)" stroke-width="1.5" class="diagram-part" data-component="bearings"/>
+                <rect x="235" y="205" width="30" height="28" rx="4" fill="var(--diagram-bearing)" stroke="var(--diagram-stroke)" stroke-width="1.5" class="diagram-part" data-component="bearings"/>
+                <!-- Ventilation -->
+                <path d="M 60 140 L 95 120 L 95 160 Z" fill="var(--diagram-fan)" stroke="var(--diagram-stroke)" stroke-width="1.5" class="diagram-part" data-component="ventilation"/>
+                <circle cx="78" cy="140" r="18" fill="none" stroke="var(--diagram-stroke)" stroke-width="1" stroke-dasharray="3 2" class="fan-blades" id="fanBlades"/>
+                <!-- Labels -->
+                <text x="210" y="55" text-anchor="middle" class="diagram-label">Stator</text>
+                <text x="210" y="140" text-anchor="middle" class="diagram-label-sm">Rotor</text>
+                <text x="310" y="145" text-anchor="middle" class="diagram-label-sm">Arbre</text>
+                <text x="170" y="250" text-anchor="middle" class="diagram-label-sm">Paliers</text>
+                <text x="78" y="175" text-anchor="middle" class="diagram-label-sm">Ventilation</text>
+              </svg>
+            </div>
+            <div class="diagram-legend" id="diagramLegend"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="row g-3 h-100">
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-thermometer-half kpi-icon"></i>
+                <div class="kpi-value" id="kpiAvgTemp">—</div>
+                <div class="kpi-label">Temp. moyenne</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-activity kpi-icon"></i>
+                <div class="kpi-value" id="kpiAvgVibration">—</div>
+                <div class="kpi-label">Vibration globale</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-speedometer kpi-icon"></i>
+                <div class="kpi-value" id="kpiEfficiency">—</div>
+                <div class="kpi-label">Rendement estimé</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-lightning-charge kpi-icon"></i>
+                <div class="kpi-value" id="kpiCurrent">—</div>
+                <div class="kpi-label">Courant triphasé</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-plug kpi-icon"></i>
+                <div class="kpi-value" id="kpiVoltage">—</div>
+                <div class="kpi-label">Tension alimentation</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-speedometer2 kpi-icon"></i>
+                <div class="kpi-value" id="kpiPressure">—</div>
+                <div class="kpi-label">Pression lubrification</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card kpi-card h-100">
+              <div class="card-body text-center">
+                <i class="bi bi-arrow-repeat kpi-icon"></i>
+                <div class="kpi-value" id="kpiSpeed">—</div>
+                <div class="kpi-label">Vitesse rotation</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alarmes actives -->
+    <section class="row mb-4" id="alarmsSection">
+      <div class="col-12">
+        <div class="card alarm-panel-card" id="alarmPanel">
+          <div class="card-header chart-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-exclamation-triangle"></i> Alarmes actives</span>
+            <span class="badge bg-danger alarm-count-badge d-none" id="alarmCountBadge">0</span>
+          </div>
+          <div class="card-body">
+            <div id="activeAlarmsList" class="active-alarms-list">
+              <p class="text-muted mb-0 no-alarm-msg"><i class="bi bi-check-circle"></i> Aucune alarme active — tous les composants sont normaux.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cartes composants (générées par JS) -->
+    <section class="row g-4 mb-4" id="componentCards"></section>
+
+    <!-- Panneau réglage manuel -->
     <section class="row mb-4">
       <div class="col-12">
         <div class="card control-panel-card">
           <div class="card-header chart-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span><i class="bi bi-sliders"></i> Réglage des paramètres moteur asynchrone triphasé</span>
-            <div class="form-check form-switch manual-mode-switch mb-0">
-              <input class="form-check-input" type="checkbox" role="switch" id="manualModeToggle">
-              <label class="form-check-label" for="manualModeToggle">Mode manuel</label>
-            </div>
+            <span><i class="bi bi-sliders"></i> Réglage manuel — Simulation de défauts</span>
+            <small class="text-muted">Activez le mode manuel pour modifier les paramètres</small>
           </div>
           <div class="card-body">
             <p class="control-panel-desc">
-              Modifiez la <strong>température</strong>, la <strong>pression</strong>, le <strong>courant</strong>
-              et la <strong>vitesse asynchrone</strong> via les curseurs, les champs numériques ou les boutons ±.
-              En mode manuel, la simulation n'écrase pas vos réglages.
+              Simulez des défauts en modifiant <strong>température</strong>, <strong>vibration</strong>,
+              <strong>pression</strong>, <strong>courant</strong>, <strong>tension</strong> et <strong>vitesse de rotation</strong>.
+              Exemple : température enroulements &gt; 110 °C → alerte « Surchauffe », statut Critique, fonctionnement 100 % → 70 %.
             </p>
-            <div class="row g-4">
-
-              <!-- Température -->
-              <div class="col-lg-6">
-                <div class="control-item">
-                  <div class="control-item-header">
-                    <i class="bi bi-thermometer-half"></i>
-                    <span>Température</span>
-                    <span class="control-live-value" id="control-value-temperature">55.0 °C</span>
-                  </div>
-                  <input type="range" class="form-range" id="panel-slider-temperature" min="20" max="100" step="0.1" value="55">
-                  <div class="d-flex align-items-center gap-2 mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="temperature" data-step="-1" aria-label="Diminuer température">−</button>
-                    <div class="input-group input-group-sm flex-grow-1">
-                      <input type="number" class="form-control sensor-input" id="panel-input-temperature" min="20" max="100" step="0.1" value="55">
-                      <span class="input-group-text">°C</span>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="temperature" data-step="1" aria-label="Augmenter température">+</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Pression -->
-              <div class="col-lg-6">
-                <div class="control-item">
-                  <div class="control-item-header">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Pression</span>
-                    <span class="control-live-value" id="control-value-pressure">3.20 bar</span>
-                  </div>
-                  <input type="range" class="form-range" id="panel-slider-pressure" min="0" max="6" step="0.01" value="3.2">
-                  <div class="d-flex align-items-center gap-2 mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="pressure" data-step="-1" aria-label="Diminuer pression">−</button>
-                    <div class="input-group input-group-sm flex-grow-1">
-                      <input type="number" class="form-control sensor-input" id="panel-input-pressure" min="0" max="6" step="0.01" value="3.2">
-                      <span class="input-group-text">bar</span>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="pressure" data-step="1" aria-label="Augmenter pression">+</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Courant -->
-              <div class="col-lg-6">
-                <div class="control-item">
-                  <div class="control-item-header">
-                    <i class="bi bi-lightning-charge"></i>
-                    <span>Courant triphasé</span>
-                    <span class="control-live-value" id="control-value-current">15.5 A</span>
-                  </div>
-                  <input type="range" class="form-range" id="panel-slider-current" min="0" max="30" step="0.1" value="15.5">
-                  <div class="d-flex align-items-center gap-2 mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="current" data-step="-1" aria-label="Diminuer courant">−</button>
-                    <div class="input-group input-group-sm flex-grow-1">
-                      <input type="number" class="form-control sensor-input" id="panel-input-current" min="0" max="30" step="0.1" value="15.5">
-                      <span class="input-group-text">A</span>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="current" data-step="1" aria-label="Augmenter courant">+</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Vitesse asynchrone -->
-              <div class="col-lg-6">
-                <div class="control-item">
-                  <div class="control-item-header">
-                    <i class="bi bi-arrow-repeat"></i>
-                    <span>Vitesse asynchrone</span>
-                    <span class="control-live-value" id="control-value-speed">1450 tr/min</span>
-                  </div>
-                  <input type="range" class="form-range" id="panel-slider-speed" min="1000" max="1800" step="1" value="1450">
-                  <div class="d-flex align-items-center gap-2 mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="speed" data-step="-1" aria-label="Diminuer vitesse">−</button>
-                    <div class="input-group input-group-sm flex-grow-1">
-                      <input type="number" class="form-control sensor-input" id="panel-input-speed" min="1000" max="1800" step="1" value="1450">
-                      <span class="input-group-text">tr/min</span>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-step" data-sensor="speed" data-step="1" aria-label="Augmenter vitesse">+</button>
-                  </div>
-                </div>
-              </div>
-
-            </div>
+            <div class="accordion" id="manualControlsAccordion"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Cartes capteurs (supervision) -->
-    <section class="row g-4 mb-4" id="sensorCards">
-
-      <!-- Température -->
-      <div class="col-lg-3 col-md-6">
-        <div class="card sensor-card" id="card-temperature" data-sensor="temperature">
-          <div class="card-header sensor-header">
-            <i class="bi bi-thermometer-half"></i>
-            <span>Température moteur</span>
-            <span class="sensor-status-badge" id="status-temperature">VERT</span>
-          </div>
-          <div class="card-body text-center">
-            <div class="sensor-value" id="value-temperature">55.0</div>
-            <div class="sensor-unit">°C</div>
-            <div class="sensor-threshold">Seuil max : <span id="threshold-temperature">75</span> °C</div>
-            <div class="sensor-controls mt-3">
-              <input type="range" class="form-range" id="slider-temperature" min="20" max="100" step="0.1" value="55">
-              <div class="input-group input-group-sm mt-2">
-                <input type="number" class="form-control sensor-input" id="input-temperature" min="20" max="100" step="0.1" value="55">
-                <span class="input-group-text">°C</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pression -->
-      <div class="col-lg-3 col-md-6">
-        <div class="card sensor-card" id="card-pressure" data-sensor="pressure">
-          <div class="card-header sensor-header">
-            <i class="bi bi-speedometer2"></i>
-            <span>Pression circuit</span>
-            <span class="sensor-status-badge" id="status-pressure">VERT</span>
-          </div>
-          <div class="card-body text-center">
-            <div class="sensor-value" id="value-pressure">3.2</div>
-            <div class="sensor-unit">bar</div>
-            <div class="sensor-threshold">Seuil max : <span id="threshold-pressure">4.5</span> bar</div>
-            <div class="sensor-controls mt-3">
-              <input type="range" class="form-range" id="slider-pressure" min="0" max="6" step="0.01" value="3.2">
-              <div class="input-group input-group-sm mt-2">
-                <input type="number" class="form-control sensor-input" id="input-pressure" min="0" max="6" step="0.01" value="3.2">
-                <span class="input-group-text">bar</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Courant -->
-      <div class="col-lg-3 col-md-6">
-        <div class="card sensor-card" id="card-current" data-sensor="current">
-          <div class="card-header sensor-header">
-            <i class="bi bi-lightning-charge"></i>
-            <span>Courant triphasé</span>
-            <span class="sensor-status-badge" id="status-current">VERT</span>
-          </div>
-          <div class="card-body text-center">
-            <div class="sensor-value" id="value-current">15.5</div>
-            <div class="sensor-unit">A</div>
-            <div class="sensor-threshold">Seuil max : <span id="threshold-current">22</span> A</div>
-            <div class="sensor-controls mt-3">
-              <input type="range" class="form-range" id="slider-current" min="0" max="30" step="0.1" value="15.5">
-              <div class="input-group input-group-sm mt-2">
-                <input type="number" class="form-control sensor-input" id="input-current" min="0" max="30" step="0.1" value="15.5">
-                <span class="input-group-text">A</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Vitesse -->
-      <div class="col-lg-3 col-md-6">
-        <div class="card sensor-card" id="card-speed" data-sensor="speed">
-          <div class="card-header sensor-header">
-            <i class="bi bi-arrow-repeat"></i>
-            <span>Vitesse asynchrone</span>
-            <span class="sensor-status-badge" id="status-speed">VERT</span>
-          </div>
-          <div class="card-body text-center">
-            <div class="sensor-value" id="value-speed">1450</div>
-            <div class="sensor-unit">tr/min</div>
-            <div class="sensor-threshold">Plage : <span id="threshold-speed-min">1300</span> – <span id="threshold-speed-max">1550</span> tr/min</div>
-            <div class="sensor-controls mt-3">
-              <input type="range" class="form-range" id="slider-speed" min="1000" max="1800" step="1" value="1450">
-              <div class="input-group input-group-sm mt-2">
-                <input type="number" class="form-control sensor-input" id="input-speed" min="1000" max="1800" step="1" value="1450">
-                <span class="input-group-text">tr/min</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- Graphiques Chart.js -->
+    <!-- Graphiques historiques -->
     <section class="row g-4 mb-4">
-      <div class="col-lg-6">
+      <div class="col-lg-4">
         <div class="card chart-card">
-          <div class="card-header chart-header">
-            <i class="bi bi-graph-up"></i> Température &amp; Pression
-          </div>
-          <div class="card-body">
-            <canvas id="chartTempPressure"></canvas>
-          </div>
+          <div class="card-header chart-header"><i class="bi bi-graph-up"></i> Températures</div>
+          <div class="card-body"><canvas id="chartTemperatures"></canvas></div>
         </div>
       </div>
-      <div class="col-lg-6">
+      <div class="col-lg-4">
         <div class="card chart-card">
-          <div class="card-header chart-header">
-            <i class="bi bi-graph-up"></i> Courant &amp; Vitesse
-          </div>
-          <div class="card-body">
-            <canvas id="chartCurrentSpeed"></canvas>
-          </div>
+          <div class="card-header chart-header"><i class="bi bi-graph-up"></i> Vibrations</div>
+          <div class="card-body"><canvas id="chartVibrations"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card chart-card">
+          <div class="card-header chart-header"><i class="bi bi-graph-up"></i> Santé &amp; fonctionnement</div>
+          <div class="card-body"><canvas id="chartHealth"></canvas></div>
         </div>
       </div>
     </section>
@@ -327,16 +276,14 @@
       <div class="col-12">
         <div class="card log-card">
           <div class="card-header chart-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-journal-text"></i> Journal d'événements</span>
-            <button class="btn btn-sm btn-outline-secondary" id="btnClearLog">
-              <i class="bi bi-trash"></i> Effacer
-            </button>
+            <span><i class="bi bi-journal-text"></i> Historique des événements</span>
+            <button class="btn btn-sm btn-outline-secondary" id="btnClearLog"><i class="bi bi-trash"></i> Effacer</button>
           </div>
           <div class="card-body p-0">
             <div class="log-container" id="eventLog">
               <div class="log-entry log-info">
                 <span class="log-time">--:--:--</span>
-                <span class="log-message">Système initialisé. En attente de démarrage de la simulation.</span>
+                <span class="log-message">Système initialisé. En attente de démarrage.</span>
               </div>
             </div>
           </div>
@@ -347,14 +294,15 @@
   </main>
 
   <footer class="app-footer text-center py-3">
-    <small>Projet de supervision industrielle — Moteur asynchrone triphasé — Simulation statique</small>
+    <small>Supervision industrielle — Moteur asynchrone triphasé — Diagnostic &amp; simulation</small>
   </footer>
 
-  <!-- Bootstrap JS -->
+  <audio id="alarmSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGWi77+efTRAMUKfj8LZjHAY4kdfyzHksBSR3x/DdkEAKFF606euoVRQKRp/g8r5sIQUrgc7y2Yk2CBlou+/nn00QDFCn4/C2YxwGOJHX8sx5LAUkd8fw3ZBAC" type="audio/wav">
+  </audio>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-  <!-- Application -->
   <script src="script.js"></script>
 </body>
 </html>
