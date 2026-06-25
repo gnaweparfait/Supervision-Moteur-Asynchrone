@@ -240,7 +240,7 @@ function initLoginPage() {
 
 /**
  * Seuils officiels par paramètre clé (affichés sur les courbes individuelles)
- * Température stator : 0-37°C Normal | 37-55°C Dégradation | >55°C Critique
+ * Température stator : 0-55°C Normal | 55-60°C Dégradation | >60°C Critique
  * Vibrations        : 0-2 mm/s Normal | 2-4 mm/s Dégradation | >4 mm/s Critique
  * Courant triphasé  : 0-18 A Normal | 18-25 A Dégradation | >25 A Critique
  * Tension           : 380-420 V Normal | 340-380/420-450 V Dégradation | <340/>450 V Critique
@@ -249,7 +249,7 @@ function initLoginPage() {
  * Vitesse rotation  : 1400-1500 tr/min Normal | 1200-1400 tr/min Dégradation | <1200 tr/min Critique
  */
 const PARAM_THRESHOLDS = {
-  temperature_stator:  { normalMin: 0,    normalMax: 37,   warnMin: 37,   warnMax: 55,   critMin: 55,  critMax: 100, unit: '°C',     label: 'Température stator' },
+  temperature_stator:  { normalMin: 0,    normalMax: 55,   warnMin: 55,   warnMax: 60,   critMin: 60,  critMax: 100, unit: '°C',     label: 'Température stator' },
   vibration:           { normalMin: 0,    normalMax: 2,    warnMin: 2,    warnMax: 4,    critMin: 4,   critMax: 15,  unit: 'mm/s',   label: 'Vibrations' },
   current:             { normalMin: 0,    normalMax: 18,   warnMin: 18,   warnMax: 25,   critMin: 25,  critMax: 35,  unit: 'A',      label: 'Courant triphasé' },
   voltage:             { normalMin: 380,  normalMax: 420,  warnMin: 340,  warnMax: 450,  critMin: 0,   critMax: 500, unit: 'V',      label: 'Tension' },
@@ -269,8 +269,8 @@ const COMPONENTS = {
     params: {
       temperature: {
         label: 'Température stator', unit: '°C', default: 28, min: 0, max: 100, step: 0.1, decimals: 1,
-        // Normal: 0-37°C | Dégradation: 37-55°C | Critique: >55°C
-        threshold: { type: 'max', warning: 37, critical: 55 },
+        // Normal: 0-55°C | Dégradation: 55-60°C | Critique: >60°C
+        threshold: { type: 'max', warning: 55, critical: 60 },
         sim: { nominal: 28, noise: 0.5, drift: 0.03 },
         faultWarning: 'Échauffement stator', faultCritical: 'Surchauffe du stator',
         element: 'STATOR'
@@ -310,7 +310,7 @@ const COMPONENTS = {
     params: {
       temperature: {
         label: 'Température enroulements', unit: '°C', default: 35, min: 0, max: 150, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 37, critical: 55 },
+        threshold: { type: 'max', warning: 55, critical: 60 },
         sim: { nominal: 35, noise: 0.6, drift: 0.04 },
         faultWarning: 'Échauffement enroulements', faultCritical: 'Surchauffe des enroulements',
         element: 'ENROULEMENTS'
@@ -340,7 +340,7 @@ const COMPONENTS = {
     params: {
       temperature: {
         label: 'Température rotor', unit: '°C', default: 30, min: 0, max: 110, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 37, critical: 55 },
+        threshold: { type: 'max', warning: 55, critical: 60 },
         sim: { nominal: 30, noise: 0.4, drift: 0.03 },
         faultWarning: 'Échauffement rotor', faultCritical: 'Échauffement anormal du rotor',
         element: 'ROTOR'
@@ -401,7 +401,7 @@ const COMPONENTS = {
     params: {
       temperature: {
         label: 'Température paliers', unit: '°C', default: 28, min: 0, max: 100, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 37, critical: 55 },
+        threshold: { type: 'max', warning: 55, critical: 60 },
         sim: { nominal: 28, noise: 0.35, drift: 0.02 },
         faultWarning: 'Échauffement paliers', faultCritical: 'Surchauffe paliers — Lubrification insuffisante',
         element: 'ROULEMENTS'
@@ -440,7 +440,7 @@ const COMPONENTS = {
     params: {
       coolingTemp: {
         label: 'Temp. refroidissement', unit: '°C', default: 28, min: 15, max: 80, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 37, critical: 55 },
+        threshold: { type: 'max', warning: 55, critical: 60 },
         sim: { nominal: 28, noise: 0.4, drift: 0.03 },
         faultWarning: 'Refroidissement insuffisant', faultCritical: 'Défaillance système refroidissement',
         element: 'VENTILATION'
@@ -1741,13 +1741,13 @@ function makeThresholdPlugin(id, zones) {
 function initIndividualCharts() {
   const colors = getChartThemeColors();
 
-  // 1. Température stator (0-100°C : 0-37 vert, 37-55 jaune, >55 rouge)
+  // 1. Température stator (0-100°C : 0-55 vert, 55-60 jaune, >60 rouge)
   const ctxTemp = document.getElementById('chartIndivTemp');
   if (ctxTemp) {
     const zones = [
-      { min: 0,  max: 37, color: 'rgba(35,134,54,0.15)' },
-      { min: 37, max: 55, color: 'rgba(210,153,34,0.18)' },
-      { min: 55, max: 100, color: 'rgba(218,54,51,0.18)' }
+      { min: 0,  max: 55, color: 'rgba(35,134,54,0.15)' },
+      { min: 55, max: 60, color: 'rgba(210,153,34,0.18)' },
+      { min: 60, max: 100, color: 'rgba(218,54,51,0.18)' }
     ];
     chartIndivTemp = new Chart(ctxTemp.getContext('2d'), {
       type: 'line',
