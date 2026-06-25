@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Supervision Moteur Asynchrone Triphasé — Script principal
+ * MOTEUR ASYNCHRONE TRIPHASÉ À CAGE D'ÉCUREUIL — Script principal
  * Authentification + simulation temps réel + alarmes + Chart.js
  * ============================================================
  */
@@ -19,7 +19,7 @@ const AUTH_CONFIG = {
   profile: {
     fullName: 'Abdel KAWIL',
     role: 'Administrateur',
-    department: 'Supervision moteur asynchrone triphasé',
+    department: "MOTEUR ASYNCHRONE TRIPHASÉ À CAGE D'ÉCUREUIL",
     email: 'abdel.kawil@supervision.local',
     accessLevel: 'Accès complet — Dashboard & réglages moteur'
   }
@@ -233,37 +233,71 @@ function initLoginPage() {
   initThemeToggle();
 }
 
+/* ============================================================
+   SEUILS DE FONCTIONNEMENT — Structure centralisée
+   Chaque paramètre possède 3 états : Normal (vert), Dégradation (jaune), Critique (rouge)
+   ============================================================ */
+
+/**
+ * Seuils officiels par paramètre clé (affichés sur les courbes individuelles)
+ * Température stator : 0-37°C Normal | 37-55°C Dégradation | >55°C Critique
+ * Vibrations        : 0-2 mm/s Normal | 2-4 mm/s Dégradation | >4 mm/s Critique
+ * Courant triphasé  : 0-18 A Normal | 18-25 A Dégradation | >25 A Critique
+ * Tension           : 380-420 V Normal | 340-380/420-450 V Dégradation | <340/>450 V Critique
+ * Pression lubr.    : 2.5-4 bar Normal | 1.5-2.5 bar Dégradation | <1.5 bar Critique
+ * Rendement         : >90% Normal | 75-90% Dégradation | <75% Critique
+ * Vitesse rotation  : 1400-1500 tr/min Normal | 1200-1400 tr/min Dégradation | <1200 tr/min Critique
+ */
+const PARAM_THRESHOLDS = {
+  temperature_stator:  { normalMin: 0,    normalMax: 37,   warnMin: 37,   warnMax: 55,   critMin: 55,  critMax: 100, unit: '°C',     label: 'Température stator' },
+  vibration:           { normalMin: 0,    normalMax: 2,    warnMin: 2,    warnMax: 4,    critMin: 4,   critMax: 15,  unit: 'mm/s',   label: 'Vibrations' },
+  current:             { normalMin: 0,    normalMax: 18,   warnMin: 18,   warnMax: 25,   critMin: 25,  critMax: 35,  unit: 'A',      label: 'Courant triphasé' },
+  voltage:             { normalMin: 380,  normalMax: 420,  warnMin: 340,  warnMax: 450,  critMin: 0,   critMax: 500, unit: 'V',      label: 'Tension' },
+  pressure:            { normalMin: 2.5,  normalMax: 4,    warnMin: 1.5,  warnMax: 2.5,  critMin: 0,   critMax: 1.5, unit: 'bar',    label: 'Pression lubrification' },
+  efficiency:          { normalMin: 90,   normalMax: 100,  warnMin: 75,   warnMax: 90,   critMin: 0,   critMax: 75,  unit: '%',      label: 'Rendement' },
+  speed:               { normalMin: 1400, normalMax: 1500, warnMin: 1200, warnMax: 1400, critMin: 0,   critMax: 1200, unit: 'tr/min', label: 'Vitesse de rotation' }
+};
+
 /* --- Configuration des composants moteur --- */
 const COMPONENTS = {
   stator: {
     label: 'Stator',
     icon: 'bi-magnet',
     weight: 1.2,
+    diagramComponent: 'stator',
     zones: ['Carcasse du stator', 'Circuit magnétique'],
     params: {
       temperature: {
-        label: 'Température stator', unit: '°C', default: 55, min: 20, max: 120, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 70, critical: 85 },
-        sim: { nominal: 55, noise: 0.6, drift: 0.04 },
-        faultWarning: 'Échauffement stator', faultCritical: 'Surchauffe'
+        label: 'Température stator', unit: '°C', default: 28, min: 0, max: 100, step: 0.1, decimals: 1,
+        // Normal: 0-37°C | Dégradation: 37-55°C | Critique: >55°C
+        threshold: { type: 'max', warning: 37, critical: 55 },
+        sim: { nominal: 28, noise: 0.5, drift: 0.03 },
+        faultWarning: 'Échauffement stator', faultCritical: 'Surchauffe du stator',
+        element: 'STATOR'
       },
       vibration: {
-        label: 'Vibrations', unit: 'mm/s', default: 2.1, min: 0, max: 15, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 4.5, critical: 7 },
-        sim: { nominal: 2.1, noise: 0.15, drift: 0.05 },
-        faultWarning: 'Vibrations modérées', faultCritical: 'Vibrations anormales'
+        label: 'Vibrations stator', unit: 'mm/s', default: 1.2, min: 0, max: 15, step: 0.1, decimals: 1,
+        // Normal: 0-2 mm/s | Dégradation: 2-4 mm/s | Critique: >4 mm/s
+        threshold: { type: 'max', warning: 2, critical: 4 },
+        sim: { nominal: 1.2, noise: 0.12, drift: 0.04 },
+        faultWarning: 'Vibrations modérées', faultCritical: 'Vibration excessive',
+        element: 'STATOR'
       },
       current: {
-        label: 'Courant absorbé', unit: 'A', default: 15.5, min: 0, max: 35, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 20, critical: 25 },
-        sim: { nominal: 15.5, noise: 0.4, drift: 0.02 },
-        faultWarning: 'Courant élevé', faultCritical: 'Déséquilibre électrique'
+        label: 'Courant triphasé', unit: 'A', default: 12, min: 0, max: 35, step: 0.1, decimals: 1,
+        // Normal: 0-18 A | Dégradation: 18-25 A | Critique: >25 A
+        threshold: { type: 'max', warning: 18, critical: 25 },
+        sim: { nominal: 12, noise: 0.3, drift: 0.02 },
+        faultWarning: 'Courant élevé', faultCritical: 'Surintensité — Déséquilibre électrique',
+        element: 'STATOR'
       },
       voltage: {
-        label: 'Tension alimentation', unit: 'V', default: 400, min: 300, max: 460, step: 1, decimals: 0,
-        threshold: { type: 'range', warningMin: 370, warningMax: 430, criticalMin: 360, criticalMax: 440 },
-        sim: { nominal: 400, noise: 2, drift: 1 },
-        faultWarning: 'Tension hors plage', faultCritical: 'Déséquilibre électrique'
+        label: 'Tension alimentation', unit: 'V', default: 400, min: 280, max: 500, step: 1, decimals: 0,
+        // Normal: 380-420 V | Dégradation: 340-380/420-450 V | Critique: <340 ou >450 V
+        threshold: { type: 'range', warningMin: 340, warningMax: 450, criticalMin: 340, criticalMax: 450 },
+        sim: { nominal: 400, noise: 1.5, drift: 0.5 },
+        faultWarning: 'Tension hors plage nominale', faultCritical: 'Tension critique — Risque de défaillance',
+        element: 'STATOR'
       }
     }
   },
@@ -271,25 +305,29 @@ const COMPONENTS = {
     label: 'Enroulements',
     icon: 'bi-lightning-charge',
     weight: 1.3,
+    diagramComponent: 'stator',
     zones: ['Bobinages internes'],
     params: {
       temperature: {
-        label: 'Température enroulements', unit: '°C', default: 62, min: 20, max: 150, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 85, critical: 110 },
-        sim: { nominal: 62, noise: 0.7, drift: 0.05 },
-        faultWarning: 'Échauffement enroulements', faultCritical: 'Surchauffe des enroulements'
+        label: 'Température enroulements', unit: '°C', default: 35, min: 0, max: 150, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 37, critical: 55 },
+        sim: { nominal: 35, noise: 0.6, drift: 0.04 },
+        faultWarning: 'Échauffement enroulements', faultCritical: 'Surchauffe des enroulements',
+        element: 'ENROULEMENTS'
       },
       insulation: {
         label: 'Résistance d\'isolement', unit: 'MΩ', default: 500, min: 0, max: 1000, step: 1, decimals: 0,
         threshold: { type: 'min', warning: 100, critical: 50 },
         sim: { nominal: 500, noise: 5, drift: 1 },
-        faultWarning: 'Isolement en baisse', faultCritical: 'Dégradation de l\'isolant'
+        faultWarning: 'Isolement en baisse', faultCritical: 'Dégradation de l\'isolant',
+        element: 'ENROULEMENTS'
       },
       current: {
-        label: 'Courant électrique', unit: 'A', default: 15.2, min: 0, max: 35, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 20, critical: 28 },
-        sim: { nominal: 15.2, noise: 0.4, drift: 0.02 },
-        faultWarning: 'Courant élevé', faultCritical: 'Court-circuit partiel'
+        label: 'Courant électrique', unit: 'A', default: 12, min: 0, max: 35, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 18, critical: 25 },
+        sim: { nominal: 12, noise: 0.3, drift: 0.02 },
+        faultWarning: 'Courant élevé', faultCritical: 'Court-circuit partiel',
+        element: 'ENROULEMENTS'
       }
     }
   },
@@ -297,25 +335,30 @@ const COMPONENTS = {
     label: 'Rotor',
     icon: 'bi-arrow-repeat',
     weight: 1.1,
+    diagramComponent: 'rotor',
     zones: ['Cage rotorique', 'Axe du rotor'],
     params: {
       temperature: {
-        label: 'Température rotor', unit: '°C', default: 48, min: 20, max: 110, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 65, critical: 80 },
-        sim: { nominal: 48, noise: 0.5, drift: 0.03 },
-        faultWarning: 'Échauffement rotor', faultCritical: 'Échauffement anormal'
+        label: 'Température rotor', unit: '°C', default: 30, min: 0, max: 110, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 37, critical: 55 },
+        sim: { nominal: 30, noise: 0.4, drift: 0.03 },
+        faultWarning: 'Échauffement rotor', faultCritical: 'Échauffement anormal du rotor',
+        element: 'ROTOR'
       },
       speed: {
-        label: 'Vitesse rotation', unit: 'tr/min', default: 1450, min: 800, max: 1800, step: 1, decimals: 0,
-        threshold: { type: 'range', warningMin: 1320, warningMax: 1560, criticalMin: 1200, criticalMax: 1650 },
-        sim: { nominal: 1450, noise: 8, drift: 2 },
-        faultWarning: 'Vitesse hors plage', faultCritical: 'Défaut de rotation'
+        label: 'Vitesse asynchrone', unit: 'tr/min', default: 1450, min: 800, max: 1800, step: 1, decimals: 0,
+        // Normal: 1400-1500 tr/min | Dégradation: 1200-1400 tr/min | Critique: <1200 tr/min
+        threshold: { type: 'range', warningMin: 1200, warningMax: 1500, criticalMin: 1200, criticalMax: 1500 },
+        sim: { nominal: 1450, noise: 6, drift: 1.5 },
+        faultWarning: 'Vitesse hors plage nominale', faultCritical: 'Défaut de rotation — Vitesse critique',
+        element: 'ROTOR'
       },
       vibration: {
-        label: 'Vibrations', unit: 'mm/s', default: 1.8, min: 0, max: 15, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 4, critical: 6.5 },
-        sim: { nominal: 1.8, noise: 0.12, drift: 0.04 },
-        faultWarning: 'Vibrations modérées', faultCritical: 'Déséquilibre mécanique'
+        label: 'Vibrations rotor', unit: 'mm/s', default: 1.0, min: 0, max: 15, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 2, critical: 4 },
+        sim: { nominal: 1.0, noise: 0.1, drift: 0.03 },
+        faultWarning: 'Vibrations rotor modérées', faultCritical: 'Déséquilibre mécanique rotor',
+        element: 'ROTOR'
       }
     }
   },
@@ -323,25 +366,29 @@ const COMPONENTS = {
     label: 'Arbre de transmission',
     icon: 'bi-arrows-collapse',
     weight: 1.0,
+    diagramComponent: 'shaft',
     zones: ['Axe de transmission'],
     params: {
       vibration: {
-        label: 'Vibration arbre', unit: 'mm/s', default: 1.5, min: 0, max: 12, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 3.5, critical: 5.5 },
-        sim: { nominal: 1.5, noise: 0.1, drift: 0.03 },
-        faultWarning: 'Vibrations arbre', faultCritical: 'Déséquilibre / Fatigue mécanique'
+        label: 'Vibration arbre', unit: 'mm/s', default: 0.9, min: 0, max: 12, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 2, critical: 4 },
+        sim: { nominal: 0.9, noise: 0.08, drift: 0.02 },
+        faultWarning: 'Vibrations arbre', faultCritical: 'Déséquilibre / Fatigue mécanique arbre',
+        element: 'ARBRE'
       },
       speed: {
-        label: 'Vitesse rotation', unit: 'tr/min', default: 1450, min: 800, max: 1800, step: 1, decimals: 0,
-        threshold: { type: 'range', warningMin: 1320, warningMax: 1560, criticalMin: 1200, criticalMax: 1650 },
-        sim: { nominal: 1450, noise: 6, drift: 1.5 },
-        faultWarning: 'Vitesse anormale', faultCritical: 'Défaut transmission'
+        label: 'Vitesse rotation arbre', unit: 'tr/min', default: 1450, min: 800, max: 1800, step: 1, decimals: 0,
+        threshold: { type: 'range', warningMin: 1200, warningMax: 1500, criticalMin: 1200, criticalMax: 1500 },
+        sim: { nominal: 1450, noise: 5, drift: 1 },
+        faultWarning: 'Vitesse anormale arbre', faultCritical: 'Défaut transmission arbre',
+        element: 'ARBRE'
       },
       alignment: {
         label: 'Alignement', unit: 'mm', default: 0.05, min: 0, max: 2, step: 0.01, decimals: 2,
         threshold: { type: 'max', warning: 0.3, critical: 0.6 },
-        sim: { nominal: 0.05, noise: 0.01, drift: 0.005 },
-        faultWarning: 'Alignement dégradé', faultCritical: 'Désalignement'
+        sim: { nominal: 0.05, noise: 0.01, drift: 0.004 },
+        faultWarning: 'Alignement dégradé', faultCritical: 'Désalignement critique',
+        element: 'ARBRE'
       }
     }
   },
@@ -349,31 +396,37 @@ const COMPONENTS = {
     label: 'Paliers / Roulements',
     icon: 'bi-circle',
     weight: 1.15,
+    diagramComponent: 'bearings',
     zones: ['Roulements avant et arrière'],
     params: {
       temperature: {
-        label: 'Température paliers', unit: '°C', default: 42, min: 15, max: 100, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 60, critical: 75 },
-        sim: { nominal: 42, noise: 0.4, drift: 0.03 },
-        faultWarning: 'Échauffement paliers', faultCritical: 'Mauvaise lubrification'
+        label: 'Température paliers', unit: '°C', default: 28, min: 0, max: 100, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 37, critical: 55 },
+        sim: { nominal: 28, noise: 0.35, drift: 0.02 },
+        faultWarning: 'Échauffement paliers', faultCritical: 'Surchauffe paliers — Lubrification insuffisante',
+        element: 'ROULEMENTS'
       },
       vibration: {
-        label: 'Vibrations', unit: 'mm/s', default: 1.2, min: 0, max: 12, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 3, critical: 5 },
-        sim: { nominal: 1.2, noise: 0.08, drift: 0.03 },
-        faultWarning: 'Vibrations paliers', faultCritical: 'Usure excessive'
+        label: 'Vibrations paliers', unit: 'mm/s', default: 0.8, min: 0, max: 12, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 2, critical: 4 },
+        sim: { nominal: 0.8, noise: 0.07, drift: 0.02 },
+        faultWarning: 'Vibrations paliers', faultCritical: 'Vibration excessive — Usure roulements',
+        element: 'ROULEMENTS'
       },
       wear: {
         label: 'Niveau d\'usure', unit: '%', default: 12, min: 0, max: 100, step: 1, decimals: 0,
         threshold: { type: 'max', warning: 60, critical: 80 },
-        sim: { nominal: 12, noise: 0.5, drift: 0.1 },
-        faultWarning: 'Usure modérée', faultCritical: 'Blocage partiel'
+        sim: { nominal: 12, noise: 0.4, drift: 0.08 },
+        faultWarning: 'Usure modérée roulements', faultCritical: 'Usure critique — Risque de blocage',
+        element: 'ROULEMENTS'
       },
       pressure: {
         label: 'Pression lubrification', unit: 'bar', default: 3.2, min: 0, max: 6, step: 0.01, decimals: 2,
-        threshold: { type: 'min', warning: 2.5, critical: 1.5 },
-        sim: { nominal: 3.2, noise: 0.04, drift: 0.008 },
-        faultWarning: 'Pression basse', faultCritical: 'Mauvaise lubrification'
+        // Normal: 2.5-4 bar | Dégradation: 1.5-2.5 bar | Critique: <1.5 bar
+        threshold: { type: 'range', warningMin: 1.5, warningMax: 4, criticalMin: 1.5, criticalMax: 6 },
+        sim: { nominal: 3.2, noise: 0.03, drift: 0.007 },
+        faultWarning: 'Pression lubrification basse', faultCritical: 'Pression insuffisante — SYSTÈME DE LUBRIFICATION',
+        element: 'SYSTÈME DE LUBRIFICATION'
       }
     }
   },
@@ -382,31 +435,35 @@ const COMPONENTS = {
     icon: 'bi-fan',
     weight: 0.9,
     optional: true,
+    diagramComponent: 'ventilation',
     zones: ['Système de refroidissement'],
     params: {
       coolingTemp: {
-        label: 'Temp. refroidissement', unit: '°C', default: 35, min: 15, max: 80, step: 0.1, decimals: 1,
-        threshold: { type: 'max', warning: 50, critical: 65 },
-        sim: { nominal: 35, noise: 0.5, drift: 0.04 },
-        faultWarning: 'Refroidissement insuffisant', faultCritical: 'Échauffement général'
+        label: 'Temp. refroidissement', unit: '°C', default: 28, min: 15, max: 80, step: 0.1, decimals: 1,
+        threshold: { type: 'max', warning: 37, critical: 55 },
+        sim: { nominal: 28, noise: 0.4, drift: 0.03 },
+        faultWarning: 'Refroidissement insuffisant', faultCritical: 'Défaillance système refroidissement',
+        element: 'VENTILATION'
       },
       fanSpeed: {
         label: 'Vitesse ventilateur', unit: 'tr/min', default: 2800, min: 500, max: 3500, step: 10, decimals: 0,
         threshold: { type: 'range', warningMin: 2200, warningMax: 3200, criticalMin: 1800, criticalMax: 3400 },
-        sim: { nominal: 2800, noise: 30, drift: 10 },
-        faultWarning: 'Ventilateur hors plage', faultCritical: 'Ventilation insuffisante'
+        sim: { nominal: 2800, noise: 28, drift: 8 },
+        faultWarning: 'Ventilateur hors plage', faultCritical: 'Défaillance ventilateur',
+        element: 'VENTILATION'
       },
       airFlow: {
         label: 'Débit d\'air', unit: 'm³/h', default: 850, min: 0, max: 1500, step: 5, decimals: 0,
         threshold: { type: 'min', warning: 600, critical: 400 },
-        sim: { nominal: 850, noise: 15, drift: 5 },
-        faultWarning: 'Débit réduit', faultCritical: 'Ventilation insuffisante'
+        sim: { nominal: 850, noise: 12, drift: 4 },
+        faultWarning: 'Débit d\'air réduit', faultCritical: 'Ventilation insuffisante — Risque surchauffe',
+        element: 'VENTILATION'
       }
     }
   }
 };
 
-const STATUS_LABELS = { normal: 'Normal', warning: 'Alerte', critical: 'Critique' };
+const STATUS_LABELS = { normal: 'Normal', warning: 'Dégradation', critical: 'Critique' };
 const HEALTH_LABELS = [
   { min: 90, label: 'Excellent' },
   { min: 70, label: 'Bon' },
@@ -433,7 +490,8 @@ const state = {
   previousAlarms: {},
   chartLabels: [],
   simPhase: 0,
-  alarmSoundActive: false
+  alarmSoundActive: false,
+  alarmHistory: []  // Historique des alarmes [{date, heure, element, defaut, valeur, niveau}]
 };
 
 /* --- Références DOM --- */
@@ -446,6 +504,15 @@ let chartHealth = null;
 let componentCharts = {};
 let alarmAudioContext = null;
 let alarmSoundInterval = null;
+
+/* --- Graphiques individuels par paramètre --- */
+let chartIndivTemp = null;
+let chartIndivVib = null;
+let chartIndivCurrent = null;
+let chartIndivVoltage = null;
+let chartIndivPressure = null;
+let chartIndivSpeed = null;
+let chartIndivEfficiency = null;
 
 const OPERATION_REDUCTION_CRITICAL = 30;
 const OPERATION_REDUCTION_WARNING = 8;
@@ -491,15 +558,27 @@ function initDashboard() {
   renderManualControls();
   initComponentCharts();
   initCharts();
+  initIndividualCharts();
   bindEvents();
   updateVentilationVisibility();
   updateDateTime();
   setInterval(updateDateTime, 1000);
   loadFromLocalStorage();
   updateUI();
+  renderAlarmHistoryTable();
 
   initAppNav('dashboard');
   updateDateTimeHeader();
+
+  // Bouton effacer historique alarmes
+  const btnClearAlarmHistory = document.getElementById('btnClearAlarmHistory');
+  if (btnClearAlarmHistory) {
+    btnClearAlarmHistory.addEventListener('click', () => {
+      state.alarmHistory = [];
+      renderAlarmHistoryTable();
+      addLog('Historique des alarmes effacé.', 'info');
+    });
+  }
 
   addLog(`Connexion réussie — Bienvenue, ${getLoggedInUser() || AUTH_CONFIG.username}.`, 'ok');
   addLog('Système de supervision initialisé. Démarrez la simulation (mode auto) ou activez le mode manuel.', 'info');
@@ -905,7 +984,10 @@ function resetValues() {
   state.chartLabels = [];
   stopPersistentAlarm();
 
-  [chartTemperatures, chartVibrations, chartHealth].forEach(chart => {
+  [chartTemperatures, chartVibrations, chartHealth,
+   chartIndivTemp, chartIndivVib, chartIndivCurrent,
+   chartIndivVoltage, chartIndivPressure, chartIndivSpeed, chartIndivEfficiency
+  ].forEach(chart => {
     if (!chart) return;
     chart.data.labels = [];
     chart.data.datasets.forEach(ds => { ds.data = []; });
@@ -1152,13 +1234,16 @@ function updateUI() {
       const isAlarm = ps.status !== 'normal';
       if (isAlarm && !state.previousAlarms[compId][paramId]) {
         const fault = getParamFaultMessage(ps.param, ps.status);
+        const element = ps.param.element || COMPONENTS[compId].label;
         addLog(
-          `ALARME [${COMPONENTS[compId].label}] — ${fault} : ${formatValue(ps.value, ps.param.decimals)} ${ps.param.unit}`,
+          `ALARME [${element}] — ${fault} : ${formatValue(ps.value, ps.param.decimals)} ${ps.param.unit}`,
           ps.status === 'critical' ? 'alarm' : 'warning'
         );
         if (ps.status === 'critical') {
           addLog(`Fonctionnement moteur réduit à ${global.operationLevel} % (était 100 %).`, 'alarm');
         }
+        // Ajouter à l'historique des alarmes
+        addAlarmToHistory(element, fault, formatValue(ps.value, ps.param.decimals), ps.param.unit, ps.status);
       } else if (!isAlarm && state.previousAlarms[compId][paramId]) {
         addLog(`${COMPONENTS[compId].label} — ${ps.param.label} revenu à la normale.`, 'ok');
       }
@@ -1171,7 +1256,8 @@ function updateUI() {
   dom.motorStatusIndicator?.classList.toggle('alarm', global.worstGlobal === 'critical');
   dom.motorStatusIndicator?.classList.toggle('warning', global.worstGlobal === 'warning');
   if (dom.motorStatusText) {
-    dom.motorStatusText.textContent = STATUS_LABELS[global.worstGlobal].toUpperCase();
+    const globalLabel = global.worstGlobal === 'normal' ? 'NORMAL' : global.worstGlobal === 'warning' ? 'DÉGRADÉ' : 'CRITIQUE';
+    dom.motorStatusText.textContent = globalLabel;
     dom.motorStatusText.className = `status-value ${global.worstGlobal === 'normal' ? 'ok' : global.worstGlobal}`;
   }
   if (dom.healthStateLabel) dom.healthStateLabel.textContent = getHealthLabel(global.globalHealth);
@@ -1386,7 +1472,10 @@ function getChartOptions(yLabel) {
  */
 function refreshChartsTheme() {
   const colors = getChartThemeColors();
-  [chartTemperatures, chartVibrations, chartHealth].forEach(chart => {
+  [chartTemperatures, chartVibrations, chartHealth,
+   chartIndivTemp, chartIndivVib, chartIndivCurrent,
+   chartIndivVoltage, chartIndivPressure, chartIndivSpeed, chartIndivEfficiency
+  ].forEach(chart => {
     if (!chart) return;
     chart.options.plugins.legend.labels.color = colors.legend;
     Object.values(chart.options.scales).forEach(scale => {
@@ -1486,6 +1575,8 @@ function appendChartData() {
     chartHealth.update('none');
   }
 
+  const efficiency = getEstimatedEfficiency(global.globalHealth, global.operationLevel);
+  appendIndividualChartsData(label, efficiency);
   appendComponentChartData();
 }
 
@@ -1518,6 +1609,277 @@ function addLog(message, type = 'info') {
 function clearLog() {
   dom.eventLog.innerHTML = '';
   addLog('Journal effacé.', 'info');
+}
+
+/* ============================================================
+   HISTORIQUE DES ALARMES
+   ============================================================ */
+
+/**
+ * Ajoute une entrée dans l'historique des alarmes
+ */
+function addAlarmToHistory(element, defaut, valeur, unite, niveau) {
+  const now = new Date();
+  const entry = {
+    date: now.toLocaleDateString('fr-FR'),
+    heure: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    element,
+    defaut,
+    valeur: `${valeur} ${unite}`,
+    niveau
+  };
+  state.alarmHistory.unshift(entry);
+  // Limiter à 100 entrées
+  if (state.alarmHistory.length > 100) state.alarmHistory.pop();
+  renderAlarmHistoryTable();
+}
+
+/**
+ * Met à jour le tableau d'historique des alarmes
+ */
+function renderAlarmHistoryTable() {
+  const tbody = document.getElementById('alarmHistoryBody');
+  if (!tbody) return;
+
+  const empty = document.getElementById('alarmHistoryEmpty');
+
+  // Remove all rows except empty row
+  Array.from(tbody.querySelectorAll('tr.alarm-history-row')).forEach(r => r.remove());
+
+  if (!state.alarmHistory.length) {
+    if (empty) empty.style.display = '';
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+
+  state.alarmHistory.forEach(entry => {
+    const tr = document.createElement('tr');
+    tr.className = `alarm-history-row alarm-history-${entry.niveau}`;
+    tr.innerHTML = `
+      <td>${entry.date}</td>
+      <td class="font-mono">${entry.heure}</td>
+      <td><strong>${entry.element}</strong></td>
+      <td>${entry.defaut}</td>
+      <td class="font-mono">${entry.valeur}</td>
+      <td><span class="badge alarm-history-badge-${entry.niveau}">${entry.niveau === 'critical' ? 'Critique' : 'Dégradation'}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   GRAPHIQUES INDIVIDUELS PAR PARAMÈTRE avec zones de seuils
+   ============================================================ */
+
+/**
+ * Crée les options pour un graphique individuel avec zones colorées
+ * @param {string} yLabel - Unité de l'axe Y
+ * @param {object} zones - { normalMax, warnMax, yMax } pour dessiner les zones
+ */
+function getIndivChartOptions(yLabel, yMin, yMax, colors) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 200 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        labels: { color: colors.legend, font: { size: 10 }, boxWidth: 10 }
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw} ${yLabel}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        display: false,
+        ticks: { color: colors.tick },
+        grid: { color: colors.grid }
+      },
+      y: {
+        min: yMin,
+        max: yMax,
+        ticks: { color: colors.tick, font: { size: 9 }, maxTicksLimit: 5 },
+        grid: { color: colors.grid },
+        title: { display: true, text: yLabel, color: colors.legend, font: { size: 10 } }
+      }
+    }
+  };
+}
+
+/**
+ * Génère un plugin Chart.js pour afficher des zones colorées (normal/dégradation/critique)
+ */
+function makeThresholdPlugin(id, zones) {
+  return {
+    id: `thresholdZones_${id}`,
+    beforeDraw(chart) {
+      const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+      if (!y || !ctx) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left, top, right - left, bottom - top);
+      ctx.clip();
+      zones.forEach(zone => {
+        const yTop = Math.max(top, y.getPixelForValue(zone.max));
+        const yBottom = Math.min(bottom, y.getPixelForValue(zone.min));
+        if (yBottom <= yTop) return;
+        ctx.fillStyle = zone.color;
+        ctx.fillRect(left, yTop, right - left, yBottom - yTop);
+      });
+      ctx.restore();
+    }
+  };
+}
+
+/**
+ * Initialise les 7 graphiques individuels par paramètre
+ */
+function initIndividualCharts() {
+  const colors = getChartThemeColors();
+
+  // 1. Température stator (0-100°C : 0-37 vert, 37-55 jaune, >55 rouge)
+  const ctxTemp = document.getElementById('chartIndivTemp');
+  if (ctxTemp) {
+    const zones = [
+      { min: 0,  max: 37, color: 'rgba(35,134,54,0.15)' },
+      { min: 37, max: 55, color: 'rgba(210,153,34,0.18)' },
+      { min: 55, max: 100, color: 'rgba(218,54,51,0.18)' }
+    ];
+    chartIndivTemp = new Chart(ctxTemp.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Temp. stator (°C)', data: [], borderColor: '#f85149', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: getIndivChartOptions('°C', 0, 100, colors),
+      plugins: [makeThresholdPlugin('temp', zones)]
+    });
+  }
+
+  // 2. Vibrations (0-15 mm/s : 0-2 vert, 2-4 jaune, >4 rouge)
+  const ctxVib = document.getElementById('chartIndivVib');
+  if (ctxVib) {
+    const zones = [
+      { min: 0, max: 2, color: 'rgba(35,134,54,0.15)' },
+      { min: 2, max: 4, color: 'rgba(210,153,34,0.18)' },
+      { min: 4, max: 15, color: 'rgba(218,54,51,0.18)' }
+    ];
+    chartIndivVib = new Chart(ctxVib.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Vibrations (mm/s)', data: [], borderColor: '#a371f7', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: getIndivChartOptions('mm/s', 0, 15, colors),
+      plugins: [makeThresholdPlugin('vib', zones)]
+    });
+  }
+
+  // 3. Courant (0-35 A : 0-18 vert, 18-25 jaune, >25 rouge)
+  const ctxCurrent = document.getElementById('chartIndivCurrent');
+  if (ctxCurrent) {
+    const zones = [
+      { min: 0,  max: 18, color: 'rgba(35,134,54,0.15)' },
+      { min: 18, max: 25, color: 'rgba(210,153,34,0.18)' },
+      { min: 25, max: 35, color: 'rgba(218,54,51,0.18)' }
+    ];
+    chartIndivCurrent = new Chart(ctxCurrent.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Courant (A)', data: [], borderColor: '#d29922', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: getIndivChartOptions('A', 0, 35, colors),
+      plugins: [makeThresholdPlugin('current', zones)]
+    });
+  }
+
+  // 4. Tension (280-500 V : 380-420 vert, 340-380/420-450 jaune, <340/>450 rouge)
+  const ctxVoltage = document.getElementById('chartIndivVoltage');
+  if (ctxVoltage) {
+    const zones = [
+      { min: 280, max: 340,  color: 'rgba(218,54,51,0.18)' },
+      { min: 340, max: 380,  color: 'rgba(210,153,34,0.18)' },
+      { min: 380, max: 420,  color: 'rgba(35,134,54,0.15)' },
+      { min: 420, max: 450,  color: 'rgba(210,153,34,0.18)' },
+      { min: 450, max: 500,  color: 'rgba(218,54,51,0.18)' }
+    ];
+    chartIndivVoltage = new Chart(ctxVoltage.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Tension (V)', data: [], borderColor: '#388bfd', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: getIndivChartOptions('V', 280, 500, colors),
+      plugins: [makeThresholdPlugin('voltage', zones)]
+    });
+  }
+
+  // 5. Pression (0-6 bar : 2.5-4 vert, 1.5-2.5 jaune, <1.5 rouge)
+  const ctxPressure = document.getElementById('chartIndivPressure');
+  if (ctxPressure) {
+    const zones = [
+      { min: 0,   max: 1.5, color: 'rgba(218,54,51,0.18)' },
+      { min: 1.5, max: 2.5, color: 'rgba(210,153,34,0.18)' },
+      { min: 2.5, max: 4.0, color: 'rgba(35,134,54,0.15)' },
+      { min: 4.0, max: 6.0, color: 'rgba(210,153,34,0.10)' }
+    ];
+    chartIndivPressure = new Chart(ctxPressure.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Pression (bar)', data: [], borderColor: '#39d353', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: getIndivChartOptions('bar', 0, 6, colors),
+      plugins: [makeThresholdPlugin('pressure', zones)]
+    });
+  }
+
+  // 6. Vitesse rotation (800-1800 tr/min : 1400-1500 vert, 1200-1400 jaune, <1200 rouge)
+  const ctxSpeed = document.getElementById('chartIndivSpeed');
+  if (ctxSpeed) {
+    const zones = [
+      { min: 800,  max: 1200, color: 'rgba(218,54,51,0.18)' },
+      { min: 1200, max: 1400, color: 'rgba(210,153,34,0.18)' },
+      { min: 1400, max: 1500, color: 'rgba(35,134,54,0.15)' },
+      { min: 1500, max: 1800, color: 'rgba(210,153,34,0.10)' }
+    ];
+    chartIndivSpeed = new Chart(ctxSpeed.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Vitesse (tr/min)', data: [], borderColor: '#58a6ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: getIndivChartOptions('tr/min', 800, 1800, colors),
+      plugins: [makeThresholdPlugin('speed', zones)]
+    });
+  }
+
+  // 7. Rendement (0-100% : >90 vert, 75-90 jaune, <75 rouge)
+  const ctxEff = document.getElementById('chartIndivEfficiency');
+  if (ctxEff) {
+    const zones = [
+      { min: 0,  max: 75, color: 'rgba(218,54,51,0.18)' },
+      { min: 75, max: 90, color: 'rgba(210,153,34,0.18)' },
+      { min: 90, max: 100, color: 'rgba(35,134,54,0.15)' }
+    ];
+    chartIndivEfficiency = new Chart(ctxEff.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Rendement (%)', data: [], borderColor: '#39d353', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true, backgroundColor: 'rgba(57,211,83,0.06)' }] },
+      options: getIndivChartOptions('%', 0, 100, colors),
+      plugins: [makeThresholdPlugin('eff', zones)]
+    });
+  }
+}
+
+/**
+ * Alimente les graphiques individuels avec les données courantes
+ */
+function appendIndividualChartsData(label, globalEfficiency) {
+  const MAX = CHART_MAX_POINTS;
+
+  function push(chart, value) {
+    if (!chart) return;
+    chart.data.labels.push(label);
+    if (chart.data.labels.length > MAX) chart.data.labels.shift();
+    chart.data.datasets[0].data.push(value);
+    if (chart.data.datasets[0].data.length > MAX) chart.data.datasets[0].data.shift();
+    chart.update('none');
+  }
+
+  push(chartIndivTemp,       state.values.stator?.temperature ?? null);
+  push(chartIndivVib,        state.values.stator?.vibration ?? null);
+  push(chartIndivCurrent,    state.values.stator?.current ?? null);
+  push(chartIndivVoltage,    state.values.stator?.voltage ?? null);
+  push(chartIndivPressure,   state.values.bearings?.pressure ?? null);
+  push(chartIndivSpeed,      state.values.rotor?.speed ?? null);
+  push(chartIndivEfficiency, globalEfficiency ?? null);
 }
 
 /* ============================================================
