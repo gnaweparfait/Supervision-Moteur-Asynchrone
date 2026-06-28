@@ -135,13 +135,6 @@ Module complet de gestion de la maintenance :
 ## Accès à l'application
 
 **URL de déploiement :** https://gnaweparfait.github.io/Supervision-Moteur-Asynchrone
-
-**Identifiants de connexion :**
-| Champ | Valeur |
-|---|---|
-| Nom d'utilisateur | Abdel KAWIL |
-| Mot de passe | Abdel062026 |
-
 ---
 
 ## Utilisation
@@ -188,12 +181,6 @@ Module complet de gestion de la maintenance :
 | Encodeur incrémental Omron | Vitesse de rotation | Arbre |
 
 ---
-
-## Auteur
-
-**Abdel KAWIL**  
-Projet de fin d'études — Maintenance prédictive basée sur les capteurs  
-Moteur Asynchrone Triphasé à Cage d'Écureuil
 
 ---
 
